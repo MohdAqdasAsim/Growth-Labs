@@ -1,0 +1,27 @@
+Platform: {platform}
+
+High Traction Tweets (Top 25%):
+{high_traction}
+
+Low Traction Tweets (Bottom 25%):
+{low_traction}
+
+Compare these and extract:
+1. Patterns that worked (high engagement tweets)
+2. Patterns that failed (low engagement tweets)
+3. Transferable rules for future Twitter/X content
+
+Be specific about what makes tweets perform well vs poorly.
+
+=== REQUIRED OUTPUT FORMAT ===
+Return a JSON object with these fields:
+{{
+  "platform": "twitter",
+  "patterns_that_worked": ["Pattern 1", "Pattern 2", ...],
+  "patterns_that_failed": ["Pattern 1", "Pattern 2", ...],
+  "transferable_rules": ["Rule 1", "Rule 2", ...]
+}}
+
+IMPORTANT:
+- All fields except platform are arrays of strings
+- Be specific with actionable patterns

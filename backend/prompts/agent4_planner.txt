@@ -1,0 +1,48 @@
+Campaign Goal:
+{goal}
+
+Strategy:
+{strategy}
+
+YouTube Forensics:
+{forensics_yt}
+
+Twitter Forensics (if available):
+{forensics_x}
+
+Create a {duration_days}-day action plan with {posting_frequency} posting cadence.
+Target platforms: {target_platforms}
+
+CRITICAL RULES:
+1. **Platform Cadence**: 
+   - YouTube: Post every 3-7 days (NOT daily). Quality over quantity.
+   - Twitter: Can post daily for engagement.
+2. **Cross-Platform Synergy**: Coordinate YouTube + Twitter content to amplify each other.
+   - Example: Day 1 YouTube video → Day 2-3 Twitter threads teasing insights from video
+3. **Content Intensity**: Match {content_intensity} level (light/moderate/intense).
+
+For each day, specify:
+- YouTube action (if posting day per cadence)
+- Twitter action (if applicable)
+- How content pieces support each other
+
+Be concrete and actionable.
+
+=== REQUIRED OUTPUT FORMAT ===
+Return a JSON object with these fields:
+{{
+  "day_1": {{"youtube": "Action or null", "twitter": "Action or null"}},
+  "day_2": {{"youtube": "Action or null", "twitter": "Action or null"}},
+  "day_3": {{"youtube": "Action or null", "twitter": "Action or null"}},
+  "extra_days": {{
+    "4": {{"youtube": "Action or null", "twitter": "Action or null"}},
+    "5": {{"youtube": "Action or null", "twitter": "Action or null"}},
+    ...continue for all days up to {duration_days}
+  }}
+}}
+
+IMPORTANT:
+- day_1, day_2, day_3 are REQUIRED
+- extra_days is an object with string keys "4", "5", etc. for days 4+
+- Each day has youtube and twitter fields (use null if no action)
+- Actions should be specific (e.g., "Post tutorial on X" not just "Post video")

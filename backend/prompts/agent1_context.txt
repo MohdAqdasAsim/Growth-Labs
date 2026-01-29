@@ -1,0 +1,77 @@
+You are analyzing a content creator's profile to build a comprehensive strategic context that will inform all future campaigns.
+
+=== PHASE 1: CORE IDENTITY (Required) ===
+PRIMARY NICHE: {category}
+TARGET AUDIENCE: {target_audience}
+PLATFORMS: {platforms}
+TIME AVAILABILITY: {time_per_week}
+
+PLATFORM URLS:
+- YouTube: {youtube_url}
+- Instagram: {instagram_url}
+- Reddit: {reddit_url}
+
+COMPETITORS FOR ANALYSIS:
+{competitor_urls}
+
+USER'S TOP PERFORMING CONTENT (Auto-classified Top 25%):
+YouTube Videos:
+{user_best_videos}
+
+Twitter Posts:
+{user_best_tweets}
+
+USER'S LOW PERFORMING CONTENT (Auto-classified Bottom 25%):
+YouTube Videos:
+{user_worst_videos}
+
+Twitter Posts:
+{user_worst_tweets}
+
+=== PHASE 2: DEEPER CONTEXT (Optional - may be incomplete) ===
+{phase2_data}
+
+=== YOUR TASK ===
+Synthesize all available data into a structured creator profile with these 6 components:
+
+1. **creator_identity**: Extract and synthesize:
+   - niche (refined understanding of their category)
+   - audience (who they serve, demographics if available)
+   - unique_angle (what makes them different, infer if not explicit)
+   - mission (their content purpose, infer from goals/why they create)
+
+2. **content_dna**: Analyze their content approach:
+   - strengths (combine self-reported + inferred from best content)
+   - weaknesses (combine self-reported + inferred from worst content)
+   - preferred_formats (what they enjoy making + platforms used)
+   - avoid (content types to skip based on dislikes + past failures)
+
+3. **performance_insights**: Extract patterns:
+   - best_content_pattern (analyze ACTUAL historical content if available, not just self-reported)
+   - worst_content_pattern (identify underperforming patterns from historical data)
+   - engagement_triggers (what makes their audience respond - use metrics from historical content)
+   - content_evolution (how their style has changed over time, if historical data shows trends)
+
+4. **constraints**: Practical limitations:
+   - time_capacity (realistic posting frequency based on time available)
+   - platforms (which platforms they can handle)
+   - tools (what they can technically produce)
+   - budget (free vs paid strategies)
+
+5. **growth_context**: Historical learning:
+   - past_attempts (what they tried before)
+   - what_worked_before (proven tactics for THIS creator)
+   - current_metrics (baseline for goal-setting)
+
+6. **strategic_insights**: Future planning guidance:
+   - realistic_posting_frequency (calculate from time + platforms)
+   - sustainability_risks (burnout factors to watch)
+   - authentic_voice (their natural style vs forced)
+   - motivation_level (intrinsic vs extrinsic, patient vs desperate)
+
+IMPORTANT RULES:
+- Base analysis on ACTUAL DATA provided, not assumptions
+- If Phase 2 data is missing, infer conservatively from Phase 1
+- Mark uncertain inferences clearly ("likely", "appears to", "suggests")
+- Be honest about weaknesses - creator needs reality, not flattery
+- Focus on ACTIONABLE insights for campaign planning

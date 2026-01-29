@@ -1,0 +1,44 @@
+Campaign Goal: {goal}
+Duration: {duration_days} days
+
+Creator Context:
+- Niche: {niche}
+- Content Style: {content_style}
+- Audience: {audience_type}
+- Strengths: {strengths}
+- Weaknesses: {weaknesses}
+- Current Metrics: {current_metrics}
+
+Formulate a growth hypothesis and experimental strategy. Be specific and actionable.
+
+CRITICAL: Assess if this goal is REALISTIC given:
+- Current baseline metrics
+- Duration of {duration_days} days
+- Typical growth rates for this niche/platform
+- Creator's capacity and constraints
+
+=== REQUIRED OUTPUT FORMAT ===
+Return a JSON object with these fields:
+{{
+  "hypothesis": "A testable growth hypothesis (string)",
+  "platform_focus": ["Platform1", "Platform2"],
+  "experiment_focus": "What you'll test (string)",
+  "reality_check": {{
+    "is_realistic": true or false,
+    "concern_level": "low" or "medium" or "high",
+    "warning": "Explain concerns if medium/high (string or null)",
+    "suggested_alternatives": ["Alternative goal 1", "Alternative goal 2"] or []
+  }}
+}}
+
+REALITY CHECK GUIDELINES:
+- LOW: Goal is achievable with good execution
+- MEDIUM: Stretch goal, requires exceptional execution + luck
+- HIGH: Unrealistic, mathematically impossible or requires viral miracle
+
+If concern_level is MEDIUM or HIGH, provide 2-3 realistic alternative goals in suggested_alternatives.
+
+IMPORTANT:
+- platform_focus MUST be an array of strings (e.g., ["YouTube", "Twitter"])
+- Be honest about realism - don't overpromise
+- Base assessment on actual growth rate data for the niche

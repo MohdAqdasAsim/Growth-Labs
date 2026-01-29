@@ -1,0 +1,19 @@
+Campaign Goal:
+{goal}
+
+Actual Metrics:
+{actual_metrics}
+
+Campaign Plan Executed:
+{campaign_plan}
+
+Daily Execution Tracking:
+{daily_execution}
+
+IMPORTANT: Calculate **Adherence Rate**:
+- Total planned posts vs. actual confirmed posts
+- Format: "Adherence Rate: X/Y posts executed (Z%)"
+- If adherence was low (<70%), include this in "what_failed"
+
+Analyze what worked, what didn't, and suggest improvements for next campaign.
+Be honest and specific about both strategy effectiveness AND execution discipline.

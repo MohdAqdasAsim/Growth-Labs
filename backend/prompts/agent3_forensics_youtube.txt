@@ -1,0 +1,27 @@
+Platform: {platform}
+
+High Traction Content (Top 25%):
+{high_traction}
+
+Low Traction Content (Bottom 25%):
+{low_traction}
+
+Compare these and extract:
+1. Patterns that worked
+2. Patterns that failed
+3. Transferable rules
+
+Be specific and evidence-based.
+
+=== REQUIRED OUTPUT FORMAT ===
+Return a JSON object with these fields:
+{{
+  "platform": "youtube",
+  "patterns_that_worked": ["Pattern 1", "Pattern 2", ...],
+  "patterns_that_failed": ["Pattern 1", "Pattern 2", ...],
+  "transferable_rules": ["Rule 1", "Rule 2", ...]
+}}
+
+IMPORTANT:
+- All fields except platform are arrays of strings
+- Be specific with actionable patterns
