@@ -1,5 +1,4 @@
-import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Dashboard from './pages/Dashboard'
 import CampaignDetail from './pages/CampaignDetail'
@@ -13,7 +12,6 @@ import PlanCampaign from './pages/PlanCampaign'
 function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -27,7 +25,6 @@ function App() {
           <Route path="/forensics" element={<Forensics />} />
           <Route path="/analytics" element={<Analytics />} />
         </Routes>
-      </BrowserRouter>
     </ThemeProvider>
   )
 }

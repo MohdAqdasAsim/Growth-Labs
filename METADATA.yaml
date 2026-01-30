@@ -1,0 +1,98 @@
+product:
+  name: Growth Labs
+  tagline: Goal-driven experimentation engine for creator growth
+  secondTagline: The more you use, the smarter it gets
+  description: >
+    A lightweight, evidence-based growth assistant that helps content creators 
+    run short, focused 3-day experiments to improve performance on YouTube and X 
+    through guided hypothesis testing and measurable outcomes.
+  
+  category: Creator Tools / Growth Platform
+  type: SaaS / AI-Powered Assistant
+  
+  version: "1.0.0-alpha"
+  status: In Development
+
+platforms:
+  primary:
+    - YouTube
+    - X (Twitter)
+  
+target_audience:
+  - Content creators
+  - YouTubers
+  - X/Twitter creators
+  - Niche-focused creators
+
+core_features:
+  - Creator context setup and competitor analysis
+  - Goal-based campaign planning
+  - 3-day micro-campaign execution
+  - Platform-specific content generation
+  - Evidence-based strategy formation
+  - Post-campaign outcome analysis and reporting
+  - Explainable results and recommendations
+
+value_proposition:
+  - Goal-first methodology instead of content-first
+  - Short, realistic 3-day experiments vs long-term vague promises
+  - Uses creator's own competitor insights
+  - Every decision is explainable and traceable
+  - Human remains in control at every step
+
+core_workflow:
+  step_1: Creator context setup (niche, profiles, competitors)
+  step_2: Goal-based campaign creation (specific, measurable objectives)
+  step_3: Evidence-based strategy formation
+  step_4: Competitor pattern analysis (high vs low performing content)
+  step_5: 3-day action plan creation
+  step_6: Daily content execution (platform-specific)
+  step_7: Post-campaign outcome analysis and learning
+
+design:
+  color_theme:
+    primary: "#10B981"  # Emerald Green
+    secondary: "#06B6D4"  # Cyan
+    accent: "#F59E0B"  # Amber
+    background: "#FFFFFF"
+    surface: "#F9FAFB"
+    text_primary: "#111827"
+    text_secondary: "#6B7280"
+  
+  color_theme_name: "Growth Green & Cyan"
+  description: Emerald green represents growth and vitality, cyan adds energy and innovation, amber provides warm highlights for calls-to-action
+
+key_differentiators:
+  - Experimentation-focused, not content-generation-focused
+  - Accountability through measurable outcomes
+  - Grounded in creator's own data and competitors
+  - Transparent, explainable AI recommendations
+  - Short-term realistic goals vs vague promises
+
+target_metrics:
+  - Campaign goal achievement rate
+  - Content engagement improvement
+  - Subscriber/follower growth
+  - Reach expansion
+  - Audience retention
+
+creator_data_inputs:
+  - Niche and platform information
+  - YouTube/X profile URLs
+  - Selected competitor profiles
+  - Campaign-specific goals
+  - Post-campaign performance metrics
+
+output_deliverables:
+  - Creator context profile
+  - Growth hypothesis document
+  - 3-day action plan
+  - Daily content briefs (platform-specific)
+  - Post-campaign analysis report
+  - Actionable recommendations
+
+unique_selling_points:
+  - "AI-guided experimentation with accountability"
+  - "Lightweight 3-day campaigns, not endless content streams"
+  - "Your data drives decisions, not viral myths"
+  - "Every recommendation explained and traceable"
