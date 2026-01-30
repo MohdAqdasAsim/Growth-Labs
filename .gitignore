@@ -1,0 +1,10 @@
+# IDE / OS
+.orchids
+.vscode
+
+# Backend
+backend/venv/
+
+# Frontend
+frontend/node_modules/
+frontend/build/

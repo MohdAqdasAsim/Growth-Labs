@@ -1,8 +1,0 @@
-{
-  "projectId": "e0f0bba1-204f-4c53-81b6-41e5b33dc465",
-  "createdAt": 1769189638285,
-  "startupCommands": [
-    "cd '/home/umar/Super Engine Lab' && ./backend/venv/bin/uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000",
-    "cd '/home/umar/Super Engine Lab/frontend' && bun run dev"
-  ]
-}
