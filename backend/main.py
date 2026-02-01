@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 from .config import ALLOWED_ORIGINS
-from .api import auth, onboarding, campaigns, content
+from .api import auth, onboarding, campaigns, content, profile
 
 app = FastAPI(
     title="Goal-Driven Agentic Campaign System",
@@ -25,6 +25,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router)
 app.include_router(onboarding.router)
+app.include_router(profile.router)
 app.include_router(campaigns.router)
 app.include_router(content.router)
 

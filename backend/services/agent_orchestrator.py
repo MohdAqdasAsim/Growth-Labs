@@ -32,11 +32,209 @@ class AgentOrchestrator:
         self.outcome_agent = OutcomeAgent()
         self.gemini_call_count = 0  # Track calls per campaign
     
+    async def analyze_previous_campaigns(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Analyzes previous completed campaigns and extracts lessons learned.
+        Returns insights for next campaign.
+        """
+        from ..storage.memory_store import memory_store
+        
+        history = memory_store.get_user_campaign_history(user_id)
+        completed = [c for c in history if c.status == CampaignStatus.COMPLETED and c.report]
+        
+        if not completed:
+            return None
+        
+        # Build analysis prompt
+        campaigns_summary = []
+        for campaign in completed:
+            campaigns_summary.append({
+                "name": campaign.onboarding.name if campaign.onboarding else "Unnamed",
+                "goal": campaign.onboarding.goal.goal_aim if campaign.onboarding else "",
+                "duration": campaign.onboarding.goal.duration_days if campaign.onboarding else 0,
+                "report": campaign.report.model_dump() if campaign.report else {}
+            })
+        
+        # Return basic structure for now (will be enhanced with Gemini later)
+        return {
+            "total_campaigns": len(completed),
+            "last_campaign": completed[-1].campaign_id,
+            "successful_patterns": [],
+            "failed_patterns": [],
+            "recommended_adjustments": []
+        }
+    
+    async def run_campaign_workflow(self, campaign_id: str):
+        """
+        Executes campaign workflow with agent toggles, learning, image gen, SEO.
+        Respects agent_config settings.
+        """
+        from ..storage.memory_store import memory_store
+        
+        campaign = memory_store.get_campaign(campaign_id)
+        if not campaign:
+            raise ValueError(f"Campaign {campaign_id} not found")
+        
+        if campaign.status != CampaignStatus.IN_PROGRESS:
+            raise ValueError(f"Campaign must be IN_PROGRESS to execute")
+        
+        # Load data
+        global_memory = campaign.global_memory_snapshot
+        learning = campaign.learning_from_previous if campaign.learning_approved else None
+        agent_config = campaign.onboarding.agent_config if campaign.onboarding else None
+        
+        self.reset_call_count()
+        
+        try:
+            # STEP 1: Strategy Agent (if enabled)
+            if agent_config and agent_config.run_strategy:
+                print("Executing Strategy Agent...")
+                strategy_context = {
+                    "global_memory": global_memory,
+                    "learning": learning,
+                    "campaign": campaign.onboarding.model_dump() if campaign.onboarding else {}
+                }
+                # Note: This is placeholder - actual strategy agent call would go here
+                campaign.strategy_output = {"status": "completed", "context": strategy_context}
+                self.gemini_call_count += 1
+            
+            # STEP 2: Forensics Agent (if enabled)
+            if agent_config and agent_config.run_forensics:
+                print("Executing Forensics Agent...")
+                forensics_output = {}
+                
+                if campaign.onboarding:
+                    for platform in campaign.onboarding.goal.platforms:
+                        # Get competitors for this platform
+                        competitors = [
+                            cp for cp in campaign.onboarding.competitors.platforms 
+                            if cp.platform == platform
+                        ]
+                        
+                        if competitors:
+                            # Note: This is placeholder - actual forensics agent call would go here
+                            forensics_output[platform] = {"status": "completed", "competitors": len(competitors[0].urls)}
+                            self.gemini_call_count += 1
+                
+                campaign.forensics_output = forensics_output
+            
+            # STEP 3: Planner Agent (if enabled)
+            if agent_config and agent_config.run_planner:
+                print("Executing Planner Agent...")
+                planner_context = {
+                    "global_memory": global_memory,
+                    "strategy": campaign.strategy_output,
+                    "forensics": campaign.forensics_output,
+                    "duration_days": campaign.onboarding.goal.duration_days if campaign.onboarding else 3,
+                    "intensity": campaign.onboarding.goal.intensity if campaign.onboarding else "moderate",
+                    "learning": learning
+                }
+                # Note: This is placeholder - actual planner agent call would go here
+                campaign.plan = planner_context
+                self.gemini_call_count += 1
+            
+            # Reality check (optional)
+            if campaign.onboarding and campaign.onboarding.goal.duration_days < 7:
+                campaign.reality_warning = {
+                    "warning": "Short campaign duration may limit results",
+                    "recommendation": "Consider extending to 7+ days"
+                }
+            
+            # STEP 4: Content Agent (if enabled)
+            if agent_config and agent_config.run_content:
+                print("Executing Content Agent...")
+                
+                duration_days = campaign.onboarding.goal.duration_days if campaign.onboarding else 3
+                for day in range(1, duration_days + 1):
+                    print(f"Generating content for Day {day}...")
+                    
+                    content_context = {
+                        "day": day,
+                        "plan": campaign.plan if campaign.plan else {},
+                        "strategy": campaign.strategy_output,
+                        "forensics": campaign.forensics_output,
+                        "global_memory": global_memory,
+                        "learning": learning
+                    }
+                    
+                    # Note: This is placeholder - actual content agent call would go here
+                    daily_content = {"day": day, "status": "generated", "context": content_context}
+                    campaign.daily_content[day] = daily_content
+                    self.gemini_call_count += 1
+                    
+                    # Image Generation (if enabled)
+                    if campaign.onboarding and campaign.onboarding.image_generation_enabled:
+                        print(f"Generating image for Day {day}...")
+                        image_url = await self.generate_image_for_content(daily_content)
+                        if image_url:
+                            campaign.daily_content[day]["thumbnail_url"] = image_url
+                    
+                    # SEO Optimization (if enabled)
+                    if campaign.onboarding and campaign.onboarding.seo_optimization_enabled:
+                        print(f"Optimizing SEO for Day {day}...")
+                        optimized = await self.optimize_content_seo(daily_content)
+                        campaign.daily_content[day] = optimized
+            
+            # Save campaign
+            campaign.updated_at = datetime.utcnow()
+            memory_store.update_campaign(campaign)
+            
+            print(f"Campaign workflow complete. Total Gemini calls: {self.gemini_call_count}")
+            
+        except Exception as e:
+            print(f"Campaign workflow failed: {e}")
+            campaign.status = CampaignStatus.FAILED
+            memory_store.update_campaign(campaign)
+            raise
+    
+    async def generate_image_for_content(self, content: Dict[str, Any]) -> Optional[str]:
+        """Generate thumbnail image for content using ImageService."""
+        try:
+            from ..services.image_service import ImageService
+            image_service = ImageService()
+            
+            # Extract title and hook from content
+            title = content.get("title", "Content thumbnail")
+            hook = content.get("hook", content.get("description", ""))
+            
+            # Generate thumbnail
+            image_url = await image_service.generate_thumbnail(title, hook, platform="YouTube")
+            return image_url
+        except Exception as e:
+            print(f"Image generation failed: {e}")
+            return None
+    
+    async def optimize_content_seo(self, content: Dict[str, Any]) -> Dict[str, Any]:
+        """Optimize content for SEO using SEOService."""
+        try:
+            from ..services.seo_service import SEOService
+            seo_service = SEOService()
+            
+            # Extract title and description from content
+            title = content.get("title", "")
+            description = content.get("description", "")
+            
+            if title and description:
+                # Optimize using SEO service
+                optimized = await seo_service.optimize_content(title, description, platform="YouTube")
+                
+                # Update content with optimized data
+                content["title"] = optimized.get("title", title)
+                content["description"] = optimized.get("description", description)
+                content["tags"] = optimized.get("tags", [])
+            
+            return content
+        except Exception as e:
+            print(f"SEO optimization failed: {e}")
+            return content
+    
     def execute_full_campaign(
         self,
         campaign: Campaign,
         creator_profile: Dict[str, Any],
-        creator_context: Optional[Dict[str, Any]] = None
+        creator_context: Optional[Dict[str, Any]] = None,
+        competitor_youtube_urls: list[str] = None,
+        competitor_x_handles: list[str] = None
     ) -> Campaign:
         """
         Execute full campaign: Strategy → Forensics → Planner → Content Generation.
@@ -50,7 +248,6 @@ class AgentOrchestrator:
         
         Total: 3-4 + N calls (depending on platforms and duration)
         """
-        # Get creator context if not provided
         if creator_context is None:
             creator_data = {
                 "category": creator_profile.get("category"),

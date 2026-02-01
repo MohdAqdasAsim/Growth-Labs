@@ -5,25 +5,65 @@ from typing import Optional, Literal
 from pydantic import BaseModel, Field
 
 
-class CampaignGoal(BaseModel):
-    """Campaign goal definition."""
-    description: str = Field(..., description="Goal description, e.g., 'Gain +30 YouTube subscribers in 3 days'")
-    goal_type: str = Field(..., description="Goal type: growth, engagement, launch, etc.")
-    platform: Literal["YouTube", "Twitter"] = Field(..., description="Target platform")
-    metric: str = Field(..., description="Metric: subscribers, views, engagement, followers, likes, etc.")
-    target_value: Optional[float] = Field(None, description="Target value if numeric")
-    duration_days: int = Field(default=3, ge=3, le=30, description="Campaign duration in days (3-30)")
-    posting_frequency: str = Field(default="daily", description="Posting cadence: daily, every_2_days, weekly, etc.")
-
-
 class CampaignStatus(str, Enum):
     """Campaign status enum."""
-    PLANNING = "planning"
-    APPROVAL_PENDING = "approval_pending"
-    APPROVED = "approved"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
+    ONBOARDING_INCOMPLETE = "onboarding_incomplete"  # During campaign setup
+    READY_TO_START = "ready_to_start"                # Onboarding done, awaiting manual start
+    IN_PROGRESS = "in_progress"                      # Agents executing or content being posted
+    COMPLETED = "completed"                          # All days executed, report generated
+    FAILED = "failed"                                # Agent execution failed
+
+
+# Campaign-specific competitor data
+class CompetitorPlatform(BaseModel):
+    """Competitor platform with URLs and descriptions."""
+    platform: Literal["YouTube", "Twitter", "Instagram", "TikTok"]
+    urls: list[dict] = Field(default_factory=list, description="[{'url': '...', 'desc': 'I like his thumbnails'}, ...]")
+
+
+class CampaignCompetitors(BaseModel):
+    """Campaign competitors across platforms."""
+    platforms: list[CompetitorPlatform] = Field(default_factory=list)
+
+
+# Metric with target
+class CampaignMetric(BaseModel):
+    """Campaign metric with target value."""
+    type: str = Field(..., description="subscribers, views, followers, engagement")
+    target: int = Field(..., description="Target value")
+
+
+# UPDATED: Campaign Goal (supports multiple platforms)
+class CampaignGoal(BaseModel):
+    """Campaign goal definition with multiple platforms and metrics."""
+    goal_aim: str = Field(..., description="What to achieve (free text)")
+    goal_type: str = Field(..., description="growth, engagement, monetization, launch")
+    platforms: list[str] = Field(..., description="['YouTube', 'Twitter'] - multiple platforms")
+    metrics: list[CampaignMetric] = Field(..., description="Array of metric objects")
+    duration_days: int = Field(default=3, ge=3, le=30, description="Campaign duration in days (3-30)")
+    intensity: str = Field(default="moderate", description="light, moderate, intense")
+
+
+# Agent Configuration (toggle switches)
+class AgentConfig(BaseModel):
+    """Agent execution configuration."""
+    run_strategy: bool = Field(default=True, description="Execute Strategy Agent")
+    run_forensics: bool = Field(default=True, description="Execute Forensics Agent")
+    run_planner: bool = Field(default=True, description="Execute Planner Agent")
+    run_content: bool = Field(default=True, description="Execute Content Agent")
+    run_outcome: bool = Field(default=True, description="Execute Outcome Agent")
+
+
+# Campaign Onboarding Data
+class CampaignOnboarding(BaseModel):
+    """Campaign onboarding data collected through 4-step wizard."""
+    name: str = Field(..., description="Campaign name")
+    description: str = Field(..., description="Campaign description")
+    goal: CampaignGoal
+    competitors: CampaignCompetitors = Field(default_factory=CampaignCompetitors)
+    agent_config: AgentConfig = Field(default_factory=AgentConfig)
+    image_generation_enabled: bool = Field(default=True, description="Generate images/thumbnails")
+    seo_optimization_enabled: bool = Field(default=True, description="Optimize content for SEO")
 
 
 class DailyExecution(BaseModel):
@@ -71,30 +111,41 @@ class CampaignReport(BaseModel):
 
 
 class Campaign(BaseModel):
-    """Campaign model."""
+    """Campaign model with onboarding, learning, and detailed tracking."""
     campaign_id: str
     user_id: str
-    goal: CampaignGoal
-    target_platforms: list[str]
-    content_intensity: str = "moderate"
-    status: CampaignStatus = CampaignStatus.PLANNING
     
-    # Planning phase outputs
+    # Campaign Onboarding Data
+    onboarding: Optional[CampaignOnboarding] = None
+    
+    # Lifecycle Status
+    status: CampaignStatus = Field(default=CampaignStatus.ONBOARDING_INCOMPLETE)
+    
+    # Global Memory Snapshot (taken at creation)
+    global_memory_snapshot: dict = Field(default_factory=dict, description="Copy of CreatorProfile at campaign creation")
+    
+    # Learning from Previous Campaigns
+    learning_from_previous: Optional[dict] = Field(None, description="Insights from past campaigns")
+    learning_approved: bool = Field(default=False, description="User approved/modified lessons")
+    
+    # Planning Phase Outputs
     strategy_output: dict = Field(default_factory=dict)
-    forensics_output_yt: dict = Field(default_factory=dict)
-    forensics_output_x: dict = Field(default_factory=dict)
+    forensics_output: dict = Field(default_factory=dict, description="Combined all platforms")
     plan: Optional[CampaignPlan] = None
-    plan_approved: bool = False
+    plan_approved: bool = Field(default=False, description="User approved the generated plan")
+    reality_warning: Optional[dict] = None
     
-    reality_warning: Optional[dict] = None  # NEW: Reality check warnings
-
+    # Execution Tracking
     daily_content: dict[int, DailyContent] = Field(default_factory=dict)
     daily_execution: dict[int, DailyExecution] = Field(default_factory=dict, description="Track actual posting per day")
     report: Optional[CampaignReport] = None
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="When campaign was created")
+    onboarding_completed_at: Optional[datetime] = Field(None, description="When onboarding finished")
+    started_at: Optional[datetime] = Field(None, description="When user clicked 'Start'")
+    completed_at: Optional[datetime] = Field(None, description="When campaign finished")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last modification")
 
 
 class CampaignCreate(BaseModel):
@@ -109,8 +160,8 @@ class CampaignResponse(BaseModel):
     """Campaign response model."""
     campaign_id: str
     user_id: str
-    goal: CampaignGoal
-    target_platforms: list[str]
+    goal: Optional[CampaignGoal] = None
+    target_platforms: Optional[list[str]] = None
     status: str
     plan: Optional[CampaignPlan] = None
     plan_approved: bool = False
