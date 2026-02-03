@@ -1,8 +1,8 @@
 """Agent 5: Content Execution Agent - Generates daily content."""
 from typing import Dict, Any
 
-from ..services.gemini_service import GeminiService
-from ..models.agent_outputs import ContentAgentOutput
+from ...services.ai.gemini_service import GeminiService
+from ...models.agents.agent_outputs import ContentAgentOutput
 
 
 class ContentAgent:
@@ -24,7 +24,8 @@ class ContentAgent:
         creator_context: Dict[str, Any],
         day_number: int,
         duration_days: int,
-        content_intensity: str = "moderate"
+        content_intensity: str = "moderate",
+        goal_type: str = "growth"
     ) -> ContentAgentOutput:
         """
         Generate content for a specific day.
@@ -35,6 +36,7 @@ class ContentAgent:
             day_number: Day number (1 to duration_days)
             duration_days: Total campaign duration (3-30 days)
             content_intensity: Production intensity (light/moderate/intense)
+            goal_type: Type of goal (growth, engagement, monetization, launch)
         
         Returns:
             ContentAgentOutput with ready-to-post content (scripts, titles, tweets, etc.)
@@ -50,6 +52,7 @@ class ContentAgent:
             day_plan=day_plan,
             creator_context=creator_context,
             day_number=day_number,
-            content_intensity=content_intensity
+            content_intensity=content_intensity,
+            goal_type=goal_type
         )
 

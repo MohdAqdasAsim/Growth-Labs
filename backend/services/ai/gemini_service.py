@@ -2,11 +2,12 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
+from datetime import datetime
 import google.generativeai as genai
 
-from ..config import GEMINI_API_KEY, GEMINI_MODEL
-from ..models.agent_outputs import (
+from ...config import GEMINI_API_KEY, GEMINI_MODEL
+from ...models.agents.agent_outputs import (
     ContextAnalyzerOutput,
     StrategyAgentOutput,
     ForensicsAgentOutput,
@@ -14,6 +15,16 @@ from ..models.agent_outputs import (
     ContentAgentOutput,
     OutcomeAgentOutput,
 )
+
+
+def _serialize_for_prompt(obj: Any) -> str:
+    """Serialize object to JSON string, handling datetime objects."""
+    def datetime_handler(x):
+        if isinstance(x, datetime):
+            return x.isoformat()
+        raise TypeError(f"Object of type {type(x)} is not JSON serializable")
+    
+    return json.dumps(obj, indent=2, default=datetime_handler)
 
 
 class GeminiService:
@@ -45,9 +56,14 @@ class GeminiService:
         if filename in self._prompt_cache:
             return self._prompt_cache[filename]
         
-        # Build path to prompts directory
-        current_dir = Path(__file__).parent.parent
-        prompts_dir = current_dir / "prompts"
+        # Build path to prompts directory (now at backend/prompts/agents/)
+        current_dir = Path(__file__).parent.parent.parent
+        prompts_dir = current_dir / "prompts" / "agents"
+        
+        # Handle platform-specific prompts
+        if "forensics" in filename and ("youtube" in filename or "twitter" in filename):
+            prompts_dir = prompts_dir / "platform_specific"
+        
         prompt_file = prompts_dir / filename
         
         if not prompt_file.exists():
@@ -262,7 +278,7 @@ class GeminiService:
             system_instruction="You are an expert creator strategist building persistent creator memory for personalized campaigns."
         )
     
-    def generate_strategy(self, goal: str, creator_context: Dict[str, Any], duration_days: int = 3) -> StrategyAgentOutput:
+    def generate_strategy(self, goal: str, creator_context: Dict[str, Any], duration_days: int = 3, goal_type: str = "growth", past_learnings: Optional[List] = None) -> StrategyAgentOutput:
         """Agent 2: Generate campaign strategy with reality check."""
         prompt_template = self.load_prompt('agent2_strategy.txt')
         
@@ -279,15 +295,31 @@ class GeminiService:
                 return "\n- " + "\n- ".join(str(item) for item in items)
             return str(items)
         
+        # Format past learnings
+        learnings_text = "No previous campaign data available."
+        if past_learnings:
+            learnings_text = "\n\n".join([
+                f"Campaign {i+1}:\n"
+                f"- Goal Type: {l.goal_type}\n"
+                f"- Platform: {l.platform}\n"
+                f"- Result: {l.goal_vs_result}\n"
+                f"- What Worked: {', '.join(l.what_worked)}\n"
+                f"- What Failed: {', '.join(l.what_failed)}\n"
+                f"- Suggestions: {', '.join(l.next_campaign_suggestions)}"
+                for i, l in enumerate(past_learnings)
+            ])
+        
         prompt = prompt_template.format(
             goal=goal,
+            goal_type=goal_type,
             duration_days=duration_days,  # NEW
             niche=identity.get('niche', creator_context.get('niche', 'Unknown')),
             content_style=format_list(content_dna.get('preferred_formats', creator_context.get('content_style', []))),
             audience_type=identity.get('audience', creator_context.get('audience_type', 'Unknown')),
             strengths=format_list(content_dna.get('strengths', creator_context.get('strengths', []))),
             weaknesses=format_list(content_dna.get('weaknesses', creator_context.get('weaknesses', []))),
-            current_metrics=growth_context.get('current_metrics', 'Not available')  # NEW
+            current_metrics=growth_context.get('current_metrics', 'Not available'),  # NEW
+            past_learnings=learnings_text
         )
         return self.generate_json(
             prompt,
@@ -354,19 +386,35 @@ class GeminiService:
         strategy: Dict[str, Any],
         forensics_yt: Optional[Dict[str, Any]] = None,
         forensics_x: Optional[Dict[str, Any]] = None,
-        content_intensity: str = "moderate"
+        content_intensity: str = "moderate",
+        goal_type: str = "growth",
+        past_learnings: Optional[List] = None
     ) -> PlannerAgentOutput:
         """Agent 4: Create N-day campaign plan."""
         prompt_template = self.load_prompt('agent4_planner.txt')
+        
+        # Format past learnings
+        learnings_text = "No previous campaign data available."
+        if past_learnings:
+            learnings_text = "\n\n".join([
+                f"Campaign {i+1}:\n"
+                f"- What Worked: {', '.join(l.what_worked)}\n"
+                f"- What Failed: {', '.join(l.what_failed)}\n"
+                f"- Suggestions: {', '.join(l.next_campaign_suggestions)}"
+                for i, l in enumerate(past_learnings)
+            ])
+        
         prompt = prompt_template.format(
             goal=json.dumps(goal.model_dump() if hasattr(goal, 'model_dump') else goal, indent=2),
+            goal_type=goal_type,
             duration_days=goal.duration_days if hasattr(goal, 'duration_days') else 3,
             posting_frequency=goal.posting_frequency if hasattr(goal, 'posting_frequency') else "daily",
             target_platforms=goal.platform if hasattr(goal, 'platform') else "YouTube",
             content_intensity=content_intensity,
             strategy=json.dumps(strategy, indent=2),
             forensics_yt=json.dumps(forensics_yt or {}, indent=2),
-            forensics_x=json.dumps(forensics_x or {}, indent=2)
+            forensics_x=json.dumps(forensics_x or {}, indent=2),
+            past_learnings=learnings_text
         )
         return self.generate_json(
             prompt,
@@ -379,15 +427,17 @@ class GeminiService:
         day_plan: Dict[str, Any],
         creator_context: Dict[str, Any],
         day_number: int,
-        content_intensity: str = "moderate"
+        content_intensity: str = "moderate",
+        goal_type: str = "growth"
     ) -> ContentAgentOutput:
         """Agent 5: Generate daily content."""
         prompt_template = self.load_prompt('agent5_content.txt')
         prompt = prompt_template.format(
             day_number=day_number,
-            day_plan=json.dumps(day_plan, indent=2),
-            creator_context=json.dumps(creator_context, indent=2),
-            content_intensity=content_intensity
+            day_plan=_serialize_for_prompt(day_plan),
+            creator_context=_serialize_for_prompt(creator_context),
+            content_intensity=content_intensity,
+            goal_type=goal_type
         )
         return self.generate_json(
             prompt,

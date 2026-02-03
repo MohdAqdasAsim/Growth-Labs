@@ -1,0 +1,48 @@
+Day {day_number} Plan:
+{day_plan}
+
+Goal Type: {goal_type}
+
+Creator Context:
+{creator_context}
+
+Content Intensity: {content_intensity}
+- **Light**: Simple formats, minimal editing (e.g., talking head, short threads)
+- **Moderate**: Polished content with basic editing (e.g., B-roll, carousels)
+- **Intense**: High-production content (e.g., animations, long-form threads)
+
+=== GOAL-SPECIFIC CONTENT GUIDELINES ===
+Optimize content based on goal_type:
+
+**GROWTH** (subscriber/follower acquisition):
+- Strong hooks in first 3 seconds
+- Clear value proposition upfront
+- Viral-friendly formats (listicles, how-tos, reactions)
+- End with strong CTA: "Subscribe for more..."
+
+**ENGAGEMENT** (interaction and community):
+- Conversation-starter questions
+- Polls, challenges, "your thoughts?" prompts
+- Community shoutouts and responses
+- End with engagement CTA: "Comment your experience..."
+
+**MONETIZATION** (revenue generation):
+- Clear problem → solution narrative
+- Product/service demonstrations
+- Value-first approach (educate before selling)
+- End with action CTA: "Link in bio..." or "Use code..."
+
+**LAUNCH** (product/service visibility):
+- Educational content about problem space
+- Behind-the-scenes, development journey
+- Social proof and testimonials
+- End with awareness CTA: "Learn more at..." or "Join the waitlist..."
+
+Generate ready-to-post content matching the creator's style and the plan requirements.
+
+IMPORTANT: For EACH piece of content you generate, include:
+1. **pattern_used**: Which competitor pattern from forensics you applied
+2. **why_it_works**: Why this approach should succeed for this creator
+3. **estimated_performance**: Expected engagement level (low/medium/high) based on forensics data
+
+This reasoning helps the creator understand the strategy behind each piece.

@@ -1,8 +1,8 @@
 """Agent 6: Outcome Analysis Agent - Post-campaign analysis."""
 from typing import Dict, Any, Optional
 
-from ..services.gemini_service import GeminiService
-from ..models.agent_outputs import OutcomeAgentOutput
+from ...services.ai.gemini_service import GeminiService
+from ...models.agents.agent_outputs import OutcomeAgentOutput
 
 
 class OutcomeAgent:

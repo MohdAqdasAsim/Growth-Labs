@@ -46,12 +46,13 @@ class CampaignGoal(BaseModel):
 
 # Agent Configuration (toggle switches)
 class AgentConfig(BaseModel):
-    """Agent execution configuration."""
-    run_strategy: bool = Field(default=True, description="Execute Strategy Agent")
-    run_forensics: bool = Field(default=True, description="Execute Forensics Agent")
-    run_planner: bool = Field(default=True, description="Execute Planner Agent")
-    run_content: bool = Field(default=True, description="Execute Content Agent")
-    run_outcome: bool = Field(default=True, description="Execute Outcome Agent")
+    """Agent execution configuration.
+    
+    Only forensics is toggleable. Other agents (strategy, planner, content, outcome) 
+    are required for campaign execution. Context analyzer runs during onboarding 
+    and results are reused during campaign.
+    """
+    run_forensics: bool = Field(default=True, description="Execute Forensics Agent (optional)")
 
 
 # Campaign Onboarding Data
@@ -99,6 +100,7 @@ class DailyContent(BaseModel):
     youtube_cta: Optional[str] = None
     x_tweet: Optional[str] = Field(None, description="Twitter/X single tweet")
     x_thread: Optional[list[str]] = Field(None, description="Twitter/X thread (list of tweets)")
+    thumbnail_url: Optional[str] = Field(None, description="Generated thumbnail image URL or data URI")
 
 
 class CampaignReport(BaseModel):

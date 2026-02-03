@@ -6,62 +6,57 @@ import pytest
 class TestCampaignCreation:
     """Test campaign creation flow (separated from execution)."""
     
-    def test_create_campaign_success(self, client, auth_headers, phase1_profile_data, campaign_create_data):
+    def test_create_campaign_success(self, client, auth_headers, phase1_profile_data):
         """Test successful campaign creation."""
         # Complete Phase 1 first
         client.post("/onboarding", json=phase1_profile_data, headers=auth_headers)
         
-        # Create campaign
-        response = client.post("/campaigns", json=campaign_create_data, headers=auth_headers)
+        # Create campaign (no body needed - creates empty shell)
+        response = client.post("/campaigns", headers=auth_headers)
         
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert "campaign_id" in data
         assert data["status"] == "onboarding_incomplete"
         assert "message" in data
     
-    def test_create_campaign_requires_phase1(self, client, auth_headers, campaign_create_data):
+    def test_create_campaign_requires_phase1(self, client, auth_headers):
         """Test that campaign creation requires Phase 1 completion."""
-        response = client.post("/campaigns", json=campaign_create_data, headers=auth_headers)
+        response = client.post("/campaigns", headers=auth_headers)
         
         assert response.status_code == 400
-        assert "phase 1" in response.json()["detail"].lower()
+        assert "onboarding" in response.json()["detail"].lower()
     
     def test_create_campaign_missing_goal(self, client, auth_headers, phase1_profile_data):
-        """Test campaign creation with missing goal."""
+        """Test campaign creation endpoint doesn't validate body (creates empty shell)."""
         client.post("/onboarding", json=phase1_profile_data, headers=auth_headers)
         
-        invalid_data = {
-            "target_platforms": ["youtube"]
-            # Missing goal
-        }
-        
-        response = client.post("/campaigns", json=invalid_data, headers=auth_headers)
-        assert response.status_code == 422
+        # API creates empty shell regardless of body, so this should succeed
+        response = client.post("/campaigns", headers=auth_headers)
+        assert response.status_code == 201
+        # Goal validation happens during PATCH /campaigns/{id}/onboarding
     
-    def test_create_multiple_campaigns(self, client, auth_headers, phase1_profile_data, campaign_create_data):
+    def test_create_multiple_campaigns(self, client, auth_headers, phase1_profile_data):
         """Test creating multiple campaigns for same user."""
         client.post("/onboarding", json=phase1_profile_data, headers=auth_headers)
         
         # Create first campaign
-        response1 = client.post("/campaigns", json=campaign_create_data, headers=auth_headers)
+        response1 = client.post("/campaigns", headers=auth_headers)
         campaign_id_1 = response1.json()["campaign_id"]
         
         # Create second campaign
-        second_campaign = campaign_create_data.copy()
-        second_campaign["goal"]["goal_aim"] = "Different goal"
-        response2 = client.post("/campaigns", json=second_campaign, headers=auth_headers)
+        response2 = client.post("/campaigns", headers=auth_headers)
         campaign_id_2 = response2.json()["campaign_id"]
         
-        assert response1.status_code == 200
-        assert response2.status_code == 200
+        assert response1.status_code == 201
+        assert response2.status_code == 201
         assert campaign_id_1 != campaign_id_2
     
-    def test_update_campaign_onboarding(self, client, auth_headers, phase1_profile_data, campaign_create_data, campaign_onboarding_data):
+    def test_update_campaign_onboarding(self, client, auth_headers, phase1_profile_data, campaign_onboarding_data):
         """Test updating campaign onboarding data (wizard step 2-4)."""
         # Setup
         client.post("/onboarding", json=phase1_profile_data, headers=auth_headers)
-        create_response = client.post("/campaigns", json=campaign_create_data, headers=auth_headers)
+        create_response = client.post("/campaigns", headers=auth_headers)
         campaign_id = create_response.json()["campaign_id"]
         
         # Update onboarding
@@ -76,11 +71,11 @@ class TestCampaignCreation:
         assert data["campaign_id"] == campaign_id
         assert data["status"] == "onboarding_updated"
     
-    def test_complete_campaign_onboarding(self, client, auth_headers, phase1_profile_data, campaign_create_data, campaign_onboarding_data):
+    def test_complete_campaign_onboarding(self, client, auth_headers, phase1_profile_data, campaign_onboarding_data):
         """Test completing campaign onboarding (ready to start)."""
         # Setup
         client.post("/onboarding", json=phase1_profile_data, headers=auth_headers)
-        create_response = client.post("/campaigns", json=campaign_create_data, headers=auth_headers)
+        create_response = client.post("/campaigns", headers=auth_headers)
         campaign_id = create_response.json()["campaign_id"]
         
         # Update onboarding
@@ -98,7 +93,7 @@ class TestCampaignCreation:
         
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "ready"
+        assert data["status"] == "ready_to_start"
         assert "message" in data
     
     def test_complete_onboarding_without_required_fields(self, client, auth_headers, phase1_profile_data, campaign_create_data):

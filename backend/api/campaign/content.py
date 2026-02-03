@@ -2,9 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
 
-from ..models.campaign import DailyContent
-from ..api.auth import get_current_user_id
-from ..storage.memory_store import memory_store
+from ...models.campaign.campaign import DailyContent
+from ...api.auth.auth import get_current_user_id
+from ...storage.memory_store import memory_store
 
 router = APIRouter(prefix="/content", tags=["content"])
 

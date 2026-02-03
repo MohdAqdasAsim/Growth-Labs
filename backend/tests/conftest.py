@@ -10,8 +10,10 @@ def client():
     """Create a test client for each test with fresh memory store."""
     # Reset memory store before each test
     from backend.storage import memory_store as memory_store_module
-    from backend.api import campaigns, onboarding, auth
-    from backend.api import profile as profile_api
+    from backend.api.campaign import campaigns
+    from backend.api.user import onboarding
+    from backend.api.auth import auth
+    from backend.api.user import profile as profile_api
     
     # Create new memory store instance
     new_store = MemoryStore()
@@ -65,19 +67,19 @@ def phase1_profile_data():
 
 @pytest.fixture(scope="function")
 def phase2_profile_data():
-    """Sample Phase 2 profile data (11 fields)."""
+    """Sample Phase 2 profile data (11 fields matching CreatorProfile model)."""
     return {
-        "youtube_channel_url": "https://youtube.com/@testchannel",
-        "twitter_handle": "@testuser",
-        "linkedin_url": "https://linkedin.com/in/testuser",
-        "instagram_handle": "@testuser",
-        "tiktok_handle": "@testuser",
-        "past_campaigns": "Ran a 30-day consistency challenge, got 200 new subscribers",
-        "best_performing_content": "Tutorial on Python async/await went viral",
-        "worst_performing_content": "Opinion piece on tech trends flopped",
-        "tools_used": "Final Cut Pro, Canva, ChatGPT",
-        "content_frequency": "3 videos per week",
-        "growth_goals": "Hit 10K subscribers by end of year"
+        "unique_angle": "Teaching through real mistakes and failures",
+        "content_mission": "Make developer productivity accessible to beginners",
+        "self_strengths": ["Clear explanations", "Authentic storytelling"],
+        "self_weaknesses": ["Consistency", "Video editing speed"],
+        "content_enjoys": ["Tutorial videos", "Problem-solving content"],
+        "content_avoids": ["Pure opinion pieces", "Trend-chasing"],
+        "audience_demographics": "18-35, aspiring developers, global",
+        "tools_skills": ["Python", "Video editing", "Canva"],
+        "past_attempts": [{"attempt": "30-day consistency challenge", "outcome": "200 new subscribers"}],
+        "what_worked_before": ["Practical tutorials", "Beginner-friendly content"],
+        "why_create": "Build personal brand and help others learn"
     }
 
 
@@ -89,8 +91,8 @@ def campaign_goal_data():
         "goal_type": "Growth - Subscribers",
         "platforms": ["youtube"],
         "metrics": [
-            {"metric_type": "subscribers", "baseline": 1200, "target": 1700},
-            {"metric_type": "views", "baseline": 5000, "target": 10000}
+            {"type": "subscribers", "target": 1700},
+            {"type": "views", "target": 10000}
         ],
         "duration_days": 7,
         "intensity": "moderate"
@@ -114,10 +116,30 @@ def campaign_onboarding_data(campaign_goal_data):
     return {
         "name": "YouTube Growth Sprint",
         "description": "7-day intensive campaign to boost subscribers with consistent uploads",
-        "goal": campaign_goal_data,
+        # Flatten goal fields to match API expectations
+        "goal_aim": campaign_goal_data["goal_aim"],
+        "goal_type": campaign_goal_data["goal_type"],
+        "platforms": campaign_goal_data["platforms"],
+        "metrics": campaign_goal_data["metrics"],
+        "duration_days": campaign_goal_data["duration_days"],
+        "intensity": campaign_goal_data["intensity"],
         "competitors": {
-            "youtube_urls": ["https://www.youtube.com/@fireship", "https://www.youtube.com/@codersgyan"],
-            "x_handles": ["@naval", "@alexhormozi"]
+            "platforms": [
+                {
+                    "platform": "YouTube",
+                    "urls": [
+                        {"url": "https://www.youtube.com/@fireship", "desc": "Great tech content"},
+                        {"url": "https://www.youtube.com/@codersgyan", "desc": "Clear tutorials"}
+                    ]
+                },
+                {
+                    "platform": "Twitter",
+                    "urls": [
+                        {"url": "https://twitter.com/naval", "desc": "Wisdom tweets"},
+                        {"url": "https://twitter.com/alexhormozi", "desc": "Business advice"}
+                    ]
+                }
+            ]
         },
         "agent_config": {
             "run_strategy": True,

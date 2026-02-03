@@ -1,10 +1,10 @@
 """Agent 4: Campaign Planner - Creates flexible duration action plans."""
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
-from ..services.gemini_service import GeminiService
-from ..models.agent_outputs import PlannerAgentOutput
-from ..models.campaign import CampaignGoal
-from ..config import PLATFORM_POSTING_NORMS
+from ...services.ai.gemini_service import GeminiService
+from ...models.agents.agent_outputs import PlannerAgentOutput
+from ...models.campaign.campaign import CampaignGoal
+from ...config import PLATFORM_POSTING_NORMS
 
 
 class PlannerAgent:
@@ -27,7 +27,8 @@ class PlannerAgent:
         strategy: Dict[str, Any],
         forensics_yt: Optional[Dict[str, Any]] = None,
         forensics_x: Optional[Dict[str, Any]] = None,
-        content_intensity: str = "moderate"
+        content_intensity: str = "moderate",
+        past_learnings: Optional[List] = None
     ) -> PlannerAgentOutput:
         """
         Create N-day campaign plan from strategy and forensics.
@@ -38,6 +39,7 @@ class PlannerAgent:
             forensics_yt: Optional output from ForensicsAgent for YouTube
             forensics_x: Optional output from ForensicsAgent for Twitter
             content_intensity: Production intensity (light/moderate/intense)
+            past_learnings: List of LearningMemory objects from previous campaigns
         
         Returns:
             PlannerAgentOutput with day_1, day_2, day_3, extra_days actions
@@ -54,7 +56,9 @@ class PlannerAgent:
             strategy=strategy,
             forensics_yt=forensics_yt,
             forensics_x=forensics_x,
-            content_intensity=content_intensity
+            content_intensity=content_intensity,
+            goal_type=goal.goal_type if goal else "growth",
+            past_learnings=past_learnings
         )
     
     def _validate_cadence(self, goal: CampaignGoal) -> None:
@@ -67,7 +71,11 @@ class PlannerAgent:
         Raises:
             ValueError: If cadence is unrealistic for platform
         """
-        platform = goal.platform.lower()
+        # Handle multiple platforms (validate first platform for simplicity)
+        if not goal.platforms:
+            return
+            
+        platform = goal.platforms[0].lower()
         duration = goal.duration_days
         
         if platform in PLATFORM_POSTING_NORMS:

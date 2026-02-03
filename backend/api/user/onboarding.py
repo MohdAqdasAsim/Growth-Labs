@@ -4,12 +4,12 @@ from typing import Annotated
 from datetime import datetime
 from pydantic import BaseModel
 
-from ..models.user import CreatorProfile
-from ..api.auth import get_current_user_id
-from ..storage.memory_store import memory_store
-from ..agents.context_analyzer import ContextAnalyzer
-from ..services.youtube_service import YouTubeService
-from ..services.twitter_service import TwitterService
+from ...models.user.user import CreatorProfile
+from ...api.auth.auth import get_current_user_id
+from ...storage.memory_store import memory_store
+from ...agents.core.context_analyzer import ContextAnalyzer
+from ...services.platforms.youtube_service import YouTubeService
+from ...services.platforms.twitter_service import TwitterService
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 context_analyzer = ContextAnalyzer()

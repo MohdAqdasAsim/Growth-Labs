@@ -1,6 +1,8 @@
 Campaign Goal:
 {goal}
 
+Goal Type: {goal_type}
+
 Strategy:
 {strategy}
 
@@ -9,6 +11,41 @@ YouTube Forensics:
 
 Twitter Forensics (if available):
 {forensics_x}
+
+=== LEARNINGS FROM PAST CAMPAIGNS ===
+{past_learnings}
+
+Apply these learnings when creating your plan:
+- Avoid tactics that previously failed
+- Replicate successful patterns
+- Implement suggested improvements
+
+=== GOAL-SPECIFIC PLANNING GUIDELINES ===
+Tailor your plan based on goal_type:
+
+**GROWTH** (subscriber/follower focus):
+- Schedule content for maximum reach windows
+- Plan viral-potential hooks and thumbnails
+- Emphasize platform algorithms (YouTube shorts, Twitter threads)
+- Include cross-promotion tactics
+
+**ENGAGEMENT** (interaction focus):
+- Plan interactive content (polls, Q&As, challenges)
+- Schedule community-building activities
+- Emphasize call-to-action prompts
+- Include reply-worthy questions and discussions
+
+**MONETIZATION** (revenue focus):
+- Plan conversion-optimized content
+- Schedule product/service mentions strategically
+- Emphasize value demonstrations
+- Include affiliate links, sponsorship spots
+
+**LAUNCH** (product/service visibility):
+- Plan awareness → consideration → conversion funnel
+- Schedule educational content about problem/solution
+- Emphasize demo and testimonial content
+- Include pre-launch hype and launch day push
 
 Create a {duration_days}-day action plan with {posting_frequency} posting cadence.
 Target platforms: {target_platforms}

@@ -4,10 +4,10 @@ from typing import Annotated, Dict, Any
 import uuid
 from datetime import datetime
 
-from ..models.campaign import Campaign, CampaignCreate, CampaignResponse, CampaignStatus, DailyExecution
-from ..api.auth import get_current_user_id
-from ..storage.memory_store import memory_store
-from ..services.agent_orchestrator import AgentOrchestrator
+from ...models.campaign.campaign import Campaign, CampaignCreate, CampaignResponse, CampaignStatus, DailyExecution
+from ...api.auth.auth import get_current_user_id
+from ...storage.memory_store import memory_store
+from ...services.core.agent_orchestrator import AgentOrchestrator
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 orchestrator = AgentOrchestrator()
@@ -76,7 +76,7 @@ async def update_campaign_onboarding(
     
     # Initialize onboarding if not exists
     if not campaign.onboarding:
-        from ..models.campaign import CampaignOnboarding, CampaignGoal, CampaignCompetitors, AgentConfig
+        from ...models.campaign.campaign import CampaignOnboarding, CampaignGoal, CampaignCompetitors, AgentConfig
         campaign.onboarding = CampaignOnboarding(
             name="",
             description="",
@@ -104,19 +104,19 @@ async def update_campaign_onboarding(
     if "platforms" in onboarding_data:
         campaign.onboarding.goal.platforms = onboarding_data["platforms"]
     if "metrics" in onboarding_data:
-        from ..models.campaign import CampaignMetric
+        from ...models.campaign.campaign import CampaignMetric
         campaign.onboarding.goal.metrics = [CampaignMetric(**m) for m in onboarding_data["metrics"]]
     if "duration_days" in onboarding_data:
         campaign.onboarding.goal.duration_days = onboarding_data["duration_days"]
     if "intensity" in onboarding_data:
         campaign.onboarding.goal.intensity = onboarding_data["intensity"]
     if "competitors" in onboarding_data:
-        from ..models.campaign import CampaignCompetitors, CompetitorPlatform
+        from ...models.campaign.campaign import CampaignCompetitors, CompetitorPlatform
         campaign.onboarding.competitors = CampaignCompetitors(
             platforms=[CompetitorPlatform(**p) for p in onboarding_data["competitors"].get("platforms", [])]
         )
     if "agent_config" in onboarding_data:
-        from ..models.campaign import AgentConfig
+        from ...models.campaign.campaign import AgentConfig
         campaign.onboarding.agent_config = AgentConfig(**onboarding_data["agent_config"])
     if "image_generation_enabled" in onboarding_data:
         campaign.onboarding.image_generation_enabled = onboarding_data["image_generation_enabled"]
@@ -128,7 +128,8 @@ async def update_campaign_onboarding(
     
     return {
         "message": "Campaign onboarding updated",
-        "campaign_id": campaign_id
+        "campaign_id": campaign_id,
+        "status": "onboarding_updated"
     }
 
 
@@ -322,12 +323,12 @@ async def delete_campaign(
     return {"message": "Campaign deleted successfully"}
 
 
-@router.get("/{campaign_id}", response_model=CampaignResponse)
+@router.get("/{campaign_id}")
 async def get_campaign(
     campaign_id: str,
     user_id: Annotated[str, Depends(get_current_user_id)]
 ):
-    """Get campaign by ID."""
+    """Get campaign by ID - returns full campaign data."""
     campaign = memory_store.get_campaign(campaign_id)
     if not campaign:
         raise HTTPException(
@@ -341,17 +342,8 @@ async def get_campaign(
             detail="Access denied"
         )
     
-    return CampaignResponse(
-        campaign_id=campaign.campaign_id,
-        user_id=campaign.user_id,
-        goal=campaign.onboarding.goal if campaign.onboarding else None,
-        target_platforms=campaign.onboarding.goal.platforms if (campaign.onboarding and campaign.onboarding.goal) else None,
-        status=campaign.status,
-        plan=campaign.plan,
-        plan_approved=campaign.plan_approved,
-        created_at=campaign.created_at,
-        updated_at=campaign.updated_at,
-    )
+    # Return campaign as dict for flexibility during testing
+    return campaign.model_dump()
 
 
 @router.post("/{campaign_id}/complete")

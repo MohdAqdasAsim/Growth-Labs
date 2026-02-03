@@ -2,14 +2,30 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated, Optional
 from datetime import datetime
+from pydantic import BaseModel
 
-from ..models.user import CreatorProfile
-from ..api.auth import get_current_user_id
-from ..storage.memory_store import memory_store
-from ..agents.context_analyzer import ContextAnalyzer
+from ...models.user.user import CreatorProfile
+from ...api.auth.auth import get_current_user_id
+from ...storage.memory_store import memory_store
+from ...agents.core.context_analyzer import ContextAnalyzer
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 context_analyzer = ContextAnalyzer()
+
+
+class Phase2Update(BaseModel):
+    """Phase 2 profile update request."""
+    unique_angle: Optional[str] = None
+    content_mission: Optional[str] = None
+    self_strengths: Optional[list[str]] = None
+    self_weaknesses: Optional[list[str]] = None
+    content_enjoys: Optional[list[str]] = None
+    content_avoids: Optional[list[str]] = None
+    audience_demographics: Optional[str] = None
+    tools_skills: Optional[list[str]] = None
+    past_attempts: Optional[list[dict]] = None
+    what_worked_before: Optional[list[str]] = None
+    why_create: Optional[str] = None
 
 
 @router.get("", response_model=CreatorProfile)
@@ -67,18 +83,8 @@ async def get_profile_completion(user_id: Annotated[str, Depends(get_current_use
 
 @router.patch("/phase2", response_model=CreatorProfile)
 async def update_phase2(
-    unique_angle: Optional[str] = None,
-    content_mission: Optional[str] = None,
-    self_strengths: Optional[list[str]] = None,
-    self_weaknesses: Optional[list[str]] = None,
-    content_enjoys: Optional[list[str]] = None,
-    content_avoids: Optional[list[str]] = None,
-    audience_demographics: Optional[str] = None,
-    tools_skills: Optional[list[str]] = None,
-    past_attempts: Optional[list[dict]] = None,
-    what_worked_before: Optional[list[str]] = None,
-    why_create: Optional[str] = None,
-    user_id: Annotated[str, Depends(get_current_user_id)] = None
+    request: Phase2Update,
+    user_id: Annotated[str, Depends(get_current_user_id)]
 ):
     """Update Phase 2 fields (optional profile completion)."""
     profile = memory_store.get_profile(user_id)
@@ -90,28 +96,28 @@ async def update_phase2(
         )
     
     # Update only provided fields
-    if unique_angle is not None:
-        profile.unique_angle = unique_angle
-    if content_mission is not None:
-        profile.content_mission = content_mission
-    if self_strengths is not None:
-        profile.self_strengths = self_strengths
-    if self_weaknesses is not None:
-        profile.self_weaknesses = self_weaknesses
-    if content_enjoys is not None:
-        profile.content_enjoys = content_enjoys
-    if content_avoids is not None:
-        profile.content_avoids = content_avoids
-    if audience_demographics is not None:
-        profile.audience_demographics = audience_demographics
-    if tools_skills is not None:
-        profile.tools_skills = tools_skills
-    if past_attempts is not None:
-        profile.past_attempts = past_attempts
-    if what_worked_before is not None:
-        profile.what_worked_before = what_worked_before
-    if why_create is not None:
-        profile.why_create = why_create
+    if request.unique_angle is not None:
+        profile.unique_angle = request.unique_angle
+    if request.content_mission is not None:
+        profile.content_mission = request.content_mission
+    if request.self_strengths is not None:
+        profile.self_strengths = request.self_strengths
+    if request.self_weaknesses is not None:
+        profile.self_weaknesses = request.self_weaknesses
+    if request.content_enjoys is not None:
+        profile.content_enjoys = request.content_enjoys
+    if request.content_avoids is not None:
+        profile.content_avoids = request.content_avoids
+    if request.audience_demographics is not None:
+        profile.audience_demographics = request.audience_demographics
+    if request.tools_skills is not None:
+        profile.tools_skills = request.tools_skills
+    if request.past_attempts is not None:
+        profile.past_attempts = request.past_attempts
+    if request.what_worked_before is not None:
+        profile.what_worked_before = request.what_worked_before
+    if request.why_create is not None:
+        profile.why_create = request.why_create
     
     # Check if all Phase 2 fields are filled
     phase2_fields = [

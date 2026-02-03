@@ -1,8 +1,8 @@
 """Agent 1: Creator Context Analyzer - Runs ONCE per user lifetime."""
 from typing import Dict, Any
 
-from ..services.gemini_service import GeminiService
-from ..models.agent_outputs import ContextAnalyzerOutput
+from ...services.ai.gemini_service import GeminiService
+from ...models.agents.agent_outputs import ContextAnalyzerOutput
 
 
 class ContextAnalyzer:

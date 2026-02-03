@@ -48,6 +48,6 @@ ALLOWED_ORIGINS: list[str] = [
     "http://127.0.0.1:8000",
 ]
 
-# Image Generation
-NANO_BANANA_API_KEY: Optional[str] = os.getenv("NANO_BANANA_API_KEY", "")
+# Image Generation (Pollinations.ai Flux)
+POLLINATIONS_API_KEY: Optional[str] = os.getenv("POLLINATIONS_API_KEY", "")
 

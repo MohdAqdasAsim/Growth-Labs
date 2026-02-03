@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from ..config import YOUTUBE_MAX_ITEMS, YOUTUBE_API_KEY
+from ...config import YOUTUBE_MAX_ITEMS, YOUTUBE_API_KEY
 
 
 class YouTubeService:

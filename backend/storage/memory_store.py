@@ -1,10 +1,10 @@
 """In-memory data storage implementation."""
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from datetime import datetime
 import uuid
 
 from ..models.user import User, CreatorProfile
-from ..models.campaign import Campaign, CampaignStatus
+from ..models.campaign import Campaign, CampaignStatus, LearningMemory
 
 
 class MemoryStore:
@@ -22,6 +22,8 @@ class MemoryStore:
         
         # Campaign Learning Storage
         self.campaign_insights: Dict[str, dict] = {}           # Key: campaign_id, Value: insights/lessons
+        self.learning_memories: Dict[str, LearningMemory] = {} # Key: learning_id, Value: LearningMemory
+        self.user_learnings: Dict[str, list[str]] = {}         # Key: user_id, Value: list of learning_ids
         
         # Authentication
         self.jwt_blacklist: set = set()  # For token invalidation
@@ -135,8 +137,65 @@ class MemoryStore:
     def is_token_blacklisted(self, token: str) -> bool:
         """Check if token is blacklisted."""
         return token in self.jwt_blacklist
+    
+    # Learning Memory operations
+    def create_learning_memory(self, learning: LearningMemory) -> LearningMemory:
+        """Store a new learning memory."""
+        self.learning_memories[learning.id] = learning
+        
+        # Add to user's learning list
+        if learning.user_id not in self.user_learnings:
+            self.user_learnings[learning.user_id] = []
+        self.user_learnings[learning.user_id].append(learning.id)
+        
+        return learning
+    
+    def get_learning_memory(self, learning_id: str) -> Optional[LearningMemory]:
+        """Get a specific learning memory by ID."""
+        return self.learning_memories.get(learning_id)
+    
+    def get_user_learnings(
+        self,
+        user_id: str,
+        goal_type: Optional[str] = None,
+        platform: Optional[str] = None,
+        niche: Optional[str] = None,
+        limit: int = 5
+    ) -> List[LearningMemory]:
+        """
+        Get learning memories for a user with optional filters.
+        
+        Args:
+            user_id: User ID to fetch learnings for
+            goal_type: Filter by goal type (growth, engagement, etc.)
+            platform: Filter by platform (YouTube, Twitter, etc.)
+            niche: Filter by content niche
+            limit: Maximum number of learnings to return (most recent first)
+        
+        Returns:
+            List of LearningMemory objects matching filters
+        """
+        if user_id not in self.user_learnings:
+            return []
+        
+        # Get all learnings for user
+        learning_ids = self.user_learnings[user_id]
+        learnings = [self.learning_memories[lid] for lid in learning_ids if lid in self.learning_memories]
+        
+        # Apply filters
+        if goal_type:
+            learnings = [l for l in learnings if l.goal_type == goal_type]
+        if platform:
+            learnings = [l for l in learnings if l.platform == platform]
+        if niche:
+            learnings = [l for l in learnings if l.niche.lower() == niche.lower()]
+        
+        # Sort by created_at (most recent first) and limit
+        learnings.sort(key=lambda x: x.created_at, reverse=True)
+        return learnings[:limit]
 
 
 # Global singleton instance
 memory_store = MemoryStore()
+
 

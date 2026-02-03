@@ -1,4 +1,5 @@
 Campaign Goal: {goal}
+Goal Type: {goal_type}
 Duration: {duration_days} days
 
 Creator Context:
@@ -8,6 +9,41 @@ Creator Context:
 - Strengths: {strengths}
 - Weaknesses: {weaknesses}
 - Current Metrics: {current_metrics}
+
+=== LEARNINGS FROM PAST CAMPAIGNS ===
+{past_learnings}
+
+Use these insights from previous campaigns to inform your strategy:
+- Avoid repeating what failed
+- Build on what worked
+- Consider suggested improvements
+
+=== GOAL-SPECIFIC STRATEGY FOCUS ===
+Based on goal_type, prioritize:
+
+**GROWTH**: Focus on subscriber/follower acquisition
+- Emphasize virality potential and reach
+- Optimize for new audience discovery
+- Prioritize shareable, hook-driven content
+- Key metrics: subscriber growth rate, reach, impressions
+
+**ENGAGEMENT**: Focus on interaction and community building
+- Emphasize comments, likes, shares, replies
+- Optimize for conversation starters
+- Prioritize community-focused content
+- Key metrics: engagement rate, average watch time, reply rate
+
+**MONETIZATION**: Focus on revenue generation
+- Emphasize conversion pathways (affiliate, products, sponsorships)
+- Optimize for high-intent audience actions
+- Prioritize value-demonstrating content
+- Key metrics: click-through rate, conversion rate, revenue per view
+
+**LAUNCH**: Focus on product/service visibility
+- Emphasize problem-solution narrative
+- Optimize for awareness and consideration
+- Prioritize educational and demo content
+- Key metrics: brand mentions, landing page visits, early adopters
 
 Formulate a growth hypothesis and experimental strategy. Be specific and actionable.
 

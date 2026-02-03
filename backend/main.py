@@ -5,7 +5,9 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 from .config import ALLOWED_ORIGINS
-from .api import auth, onboarding, campaigns, content, profile
+from .api.auth import auth
+from .api.user import onboarding, profile
+from .api.campaign import campaigns, content
 
 app = FastAPI(
     title="Goal-Driven Agentic Campaign System",

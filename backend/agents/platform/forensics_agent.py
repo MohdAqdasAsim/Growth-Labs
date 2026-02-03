@@ -1,10 +1,10 @@
 """Agent 3: Competitor Performance Forensics Agent - Critical agent with deterministic classification."""
 from typing import Dict, Any, List
 
-from ..services.gemini_service import GeminiService
-from ..services.youtube_service import YouTubeService
-from ..services.twitter_service import TwitterService
-from ..models.agent_outputs import ForensicsAgentOutput
+from ...services.ai.gemini_service import GeminiService
+from ...services.platforms.youtube_service import YouTubeService
+from ...services.platforms.twitter_service import TwitterService
+from ...models.agents.agent_outputs import ForensicsAgentOutput
 
 
 class ForensicsAgent:

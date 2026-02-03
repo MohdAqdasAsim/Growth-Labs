@@ -5,10 +5,10 @@ from typing import Annotated
 import uuid
 from datetime import timedelta
 
-from ..models.user import UserCreate, UserLogin, Token, User
-from ..services.auth_service import AuthService
-from ..storage.memory_store import memory_store
-from ..config import JWT_EXPIRATION_HOURS
+from ...models.user.user import UserCreate, UserLogin, Token, User
+from ...services.core.auth_service import AuthService
+from ...storage.memory_store import memory_store
+from ...config import JWT_EXPIRATION_HOURS
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
