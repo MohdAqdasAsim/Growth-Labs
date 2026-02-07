@@ -1,6 +1,8 @@
 """Agent orchestrator - Coordinates agent execution flow."""
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...agents.core.context_analyzer import ContextAnalyzer
 from ...agents.core.strategy_agent import StrategyAgent
@@ -9,6 +11,8 @@ from ...agents.core.planner_agent import PlannerAgent
 from ...agents.core.content_agent import ContentAgent
 from ...agents.core.outcome_agent import OutcomeAgent
 from ...models.campaign.campaign import Campaign, CampaignStatus, DailyContent
+from ...models.db.campaign import CampaignDB, LearningMemoryDB
+from ...models.db.user import CreatorProfileDB
 
 
 class AgentOrchestrator:
@@ -32,15 +36,18 @@ class AgentOrchestrator:
         self.outcome_agent = OutcomeAgent()
         self.gemini_call_count = 0  # Track calls per campaign
     
-    async def analyze_previous_campaigns(self, user_id: str) -> Optional[Dict[str, Any]]:
+    async def analyze_previous_campaigns(self, user_id: str, db: AsyncSession) -> Optional[Dict[str, Any]]:
         """
         Analyzes previous completed campaigns and extracts lessons learned.
         Returns insights for next campaign.
         """
-        from ..storage.memory_store import memory_store
-        
-        history = memory_store.get_user_campaign_history(user_id)
-        completed = [c for c in history if c.status == CampaignStatus.COMPLETED and c.report]
+        result = await db.execute(
+            select(CampaignDB)
+            .where(CampaignDB.user_id == user_id)
+            .where(CampaignDB.status == "completed")
+            .where(CampaignDB.outcome_report.isnot(None))
+        )
+        completed = result.scalars().all()
         
         if not completed:
             return None
@@ -49,10 +56,10 @@ class AgentOrchestrator:
         campaigns_summary = []
         for campaign in completed:
             campaigns_summary.append({
-                "name": campaign.onboarding.name if campaign.onboarding else "Unnamed",
-                "goal": campaign.onboarding.goal.goal_aim if campaign.onboarding else "",
-                "duration": campaign.onboarding.goal.duration_days if campaign.onboarding else 0,
-                "report": campaign.report.model_dump() if campaign.report else {}
+                "name": campaign.onboarding_data.get("name", "Unnamed") if campaign.onboarding_data else "Unnamed",
+                "goal": campaign.onboarding_data.get("goal", {}).get("goal_aim", "") if campaign.onboarding_data else "",
+                "duration": campaign.onboarding_data.get("goal", {}).get("duration_days", 0) if campaign.onboarding_data else 0,
+                "report": campaign.outcome_report or {}
             })
         
         # Return basic structure for now (will be enhanced with Gemini later)
@@ -64,42 +71,63 @@ class AgentOrchestrator:
             "recommended_adjustments": []
         }
     
-    async def run_campaign_workflow(self, campaign_id: str):
+    async def run_campaign_workflow(self, campaign_id: str, db: AsyncSession):
         """
         Executes campaign workflow with agent toggles, learning, image gen, SEO.
         Respects agent_config settings and learns from past campaigns.
         """
-        from ..storage.memory_store import memory_store
+        result = await db.execute(select(CampaignDB).where(CampaignDB.campaign_id == campaign_id))
+        campaign_db = result.scalar_one_or_none()
         
-        campaign = memory_store.get_campaign(campaign_id)
-        if not campaign:
+        if not campaign_db:
             raise ValueError(f"Campaign {campaign_id} not found")
         
-        if campaign.status != CampaignStatus.IN_PROGRESS:
+        if campaign_db.status != "in_progress":
             raise ValueError(f"Campaign must be IN_PROGRESS to execute")
         
         # Load data
-        global_memory = campaign.global_memory_snapshot
-        learning = campaign.learning_from_previous if campaign.learning_approved else None
-        agent_config = campaign.onboarding.agent_config if campaign.onboarding else None
+        profile_snapshot = campaign_db.profile_snapshot or {}
+        learning = campaign_db.learning_insights if campaign_db.learning_approved else None
+        agent_config = campaign_db.onboarding_data.get("agent_config") if campaign_db.onboarding_data else None
         
         # Fetch past learnings from completed campaigns
         past_learnings = []
-        if campaign.onboarding:
+        if campaign_db.onboarding_data:
             # Get creator profile for niche
-            profile = memory_store.get_creator_profile(campaign.user_id)
-            niche = None
-            if profile and profile.creator_identity:
-                niche = profile.creator_identity.get('niche')
+            result = await db.execute(select(CreatorProfileDB).where(CreatorProfileDB.user_id == campaign_db.user_id))
+            profile = result.scalar_one_or_none()
+            niche = profile.niche if profile else None
             
             # Fetch relevant learnings (same goal_type, platform, niche)
-            past_learnings = memory_store.get_user_learnings(
-                user_id=campaign.user_id,
-                goal_type=campaign.onboarding.goal.goal_type,
-                platform=campaign.onboarding.goal.platforms[0] if campaign.onboarding.goal.platforms else None,
-                niche=niche,
-                limit=3  # Get last 3 relevant campaigns
-            )
+            goal_type = campaign_db.onboarding_data.get("goal", {}).get("goal_type")
+            platforms = campaign_db.onboarding_data.get("goal", {}).get("platforms", [])
+            platform = platforms[0] if platforms else None
+            
+            query = select(LearningMemoryDB).where(LearningMemoryDB.user_id == campaign_db.user_id)
+            
+            if goal_type:
+                query = query.where(LearningMemoryDB.goal_type == goal_type)
+            if platform:
+                query = query.where(LearningMemoryDB.platform == platform)
+            if niche:
+                query = query.where(LearningMemoryDB.niche == niche)
+            
+            query = query.order_by(LearningMemoryDB.created_at.desc()).limit(3)
+            
+            result = await db.execute(query)
+            learning_records = result.scalars().all()
+            
+            past_learnings = [
+                {
+                    "memory_id": lr.memory_id,
+                    "goal_type": lr.goal_type,
+                    "platform": lr.platform,
+                    "what_worked": lr.what_worked or [],
+                    "what_failed": lr.what_failed or [],
+                    "recommendations": lr.recommendations or []
+                }
+                for lr in learning_records
+            ]
             
             if past_learnings:
                 print(f"\n📚 Retrieved {len(past_learnings)} learning(s) from past campaigns")
@@ -115,44 +143,51 @@ class AgentOrchestrator:
             print("\n[1/4] 🎯 Executing Strategy Agent...")
             
             try:
+                onboarding = campaign_db.onboarding_data or {}
+                goal = onboarding.get("goal", {})
+                
                 strategy_output = self.strategy_agent.generate_strategy(
-                    goal=campaign.onboarding.goal.goal_aim if campaign.onboarding else "",
-                    creator_context=global_memory,
-                    duration_days=campaign.onboarding.goal.duration_days if campaign.onboarding else 3,
-                    goal_type=campaign.onboarding.goal.goal_type if campaign.onboarding else "growth",
+                    goal=goal.get("goal_aim", ""),
+                    creator_context=profile_snapshot,
+                    duration_days=goal.get("duration_days", 3),
+                    goal_type=goal.get("goal_type", "growth"),
                     past_learnings=past_learnings
                 )
                 
-                campaign.strategy_output = strategy_output.model_dump()
+                campaign_db.strategy_output = strategy_output.model_dump()
                 self.gemini_call_count += 1
                 print("      ✅ Strategy analysis complete")
                 
             except Exception as strategy_error:
                 print(f"      ❌ Strategy failed: {str(strategy_error)[:100]}")
-                campaign.strategy_output = {"error": str(strategy_error)[:200]}
+                campaign_db.strategy_output = {"error": str(strategy_error)[:200]}
             
             # STEP 2: Forensics Agent (if enabled)
-            if agent_config and agent_config.run_forensics:
+            if agent_config and agent_config.get("run_forensics", True):
                 print("\n[2/4] 🔍 Executing Forensics Agent...")
                 forensics_output = {}
                 
-                if campaign.onboarding:
-                    for platform in campaign.onboarding.goal.platforms:
+                if campaign_db.onboarding_data:
+                    onboarding = campaign_db.onboarding_data
+                    platforms = onboarding.get("goal", {}).get("platforms", [])
+                    competitors_data = onboarding.get("competitors", {})
+                    
+                    for platform in platforms:
                         # Get competitors for this platform
-                        competitors = [
-                            cp for cp in campaign.onboarding.competitors.platforms 
-                            if cp.platform == platform
+                        platform_competitors = [
+                            cp for cp in competitors_data.get("platforms", [])
+                            if cp.get("platform") == platform
                         ]
                         
-                        if competitors and competitors[0].urls:
-                            print(f"      📊 Analyzing {len(competitors[0].urls)} competitors on {platform}...")
+                        if platform_competitors and platform_competitors[0].get("urls"):
+                            print(f"      📊 Analyzing {len(platform_competitors[0]['urls'])} competitors on {platform}...")
                             
                             platform_patterns = []
-                            for competitor_url in competitors[0].urls:
+                            for competitor_url in platform_competitors[0]["urls"]:
                                 try:
                                     forensics_result = self.forensics_agent.analyze_competitor(
                                         platform=platform,
-                                        competitor_url=competitor_url
+                                        competitor_url=competitor_url.get("url") if isinstance(competitor_url, dict) else competitor_url
                                     )
                                     platform_patterns.append(forensics_result.model_dump())
                                     self.gemini_call_count += 1
@@ -166,142 +201,156 @@ class AgentOrchestrator:
                                     "patterns": platform_patterns
                                 }
                 
-                campaign.forensics_output = forensics_output
+                campaign_db.forensics_output = forensics_output
                 print("      ✅ Forensics analysis complete")
             
             # STEP 3: Planner Agent (required)
             print("\n[3/4] 📋 Executing Planner Agent...")
             
             try:
+                onboarding = campaign_db.onboarding_data or {}
+                goal_data = onboarding.get("goal", {})
+                
                 # Extract forensics by platform
                 forensics_yt = None
                 forensics_x = None
-                if campaign.forensics_output:
-                    forensics_yt = campaign.forensics_output.get("youtube")
-                    forensics_x = campaign.forensics_output.get("twitter")
+                if campaign_db.forensics_output:
+                    forensics_yt = campaign_db.forensics_output.get("youtube")
+                    forensics_x = campaign_db.forensics_output.get("twitter")
+                
+                # Import goal model for planner
+                from ...models.campaign.campaign import CampaignGoal
+                goal_obj = CampaignGoal(**goal_data) if goal_data else None
                 
                 planner_output = self.planner_agent.create_plan(
-                    goal=campaign.onboarding.goal if campaign.onboarding else None,
-                    strategy=campaign.strategy_output or {},
+                    goal=goal_obj,
+                    strategy=campaign_db.strategy_output or {},
                     forensics_yt=forensics_yt,
                     forensics_x=forensics_x,
-                    content_intensity=campaign.onboarding.goal.intensity if campaign.onboarding else "moderate",
+                    content_intensity=goal_data.get("intensity", "moderate"),
                     past_learnings=past_learnings
                 )
                 
-                campaign.plan = planner_output.model_dump()
+                campaign_db.campaign_plan = planner_output.model_dump()
                 self.gemini_call_count += 1
-                duration = campaign.onboarding.goal.duration_days if campaign.onboarding else 3
+                duration = goal_data.get("duration_days", 3)
                 print(f"      ✅ {duration}-day campaign plan created")
                 
             except Exception as planner_error:
                 print(f"      ❌ Planner failed: {str(planner_error)[:100]}")
-                campaign.plan = {"error": str(planner_error)[:200]}
+                campaign_db.campaign_plan = {"error": str(planner_error)[:200]}
             
             # Reality check (optional)
-            if campaign.onboarding and campaign.onboarding.goal.duration_days < 7:
-                campaign.reality_warning = {
+            onboarding = campaign_db.onboarding_data or {}
+            if onboarding.get("goal", {}).get("duration_days", 3) < 7:
+                campaign_db.content_warnings = {
                     "warning": "Short campaign duration may limit results",
                     "recommendation": "Consider extending to 7+ days"
                 }
             
             # STEP 4: Content Agent (required)
-            duration_days = campaign.onboarding.goal.duration_days if campaign.onboarding else 3
+            duration_days = onboarding.get("goal", {}).get("duration_days", 3)
             print(f"\n[4/4] ✍️  Executing Content Agent ({duration_days} days)...")
+            
+            # Import DailyContentDB for saving
+            from ...models.db.campaign import DailyContentDB
+            import uuid
             
             for day in range(1, duration_days + 1):
                 print(f"\n      📅 Day {day}/{duration_days}:")
                 
                 # Prepare day plan (from planner output)
                 day_plan = {}
-                if campaign.plan:
-                    if isinstance(campaign.plan, dict):
-                        day_plan = campaign.plan.get(f"day_{day}", {})
-                    else:
-                        # If plan is a Pydantic model
-                        day_plan = getattr(campaign.plan, f"day_{day}", {})
-                        if hasattr(day_plan, 'model_dump'):
-                            day_plan = day_plan.model_dump()
+                if campaign_db.campaign_plan:
+                    if isinstance(campaign_db.campaign_plan, dict):
+                        day_plan = campaign_db.campaign_plan.get(f"day_{day}", {})
                 
                 # Generate actual content using ContentAgent
                 try:
                     content_output = self.content_agent.generate_content(
                         day_plan=day_plan,
-                        creator_context=global_memory,
+                        creator_context=profile_snapshot,
                         day_number=day,
                         duration_days=duration_days,
-                        content_intensity=campaign.onboarding.goal.intensity if campaign.onboarding else "moderate",
-                        goal_type=campaign.onboarding.goal.goal_type if campaign.onboarding else "growth"
+                        content_intensity=onboarding.get("goal", {}).get("intensity", "moderate"),
+                        goal_type=onboarding.get("goal", {}).get("goal_type", "growth")
                     )
                     
-                    # Convert ContentAgentOutput to DailyContent Pydantic model
-                    daily_content = DailyContent(
-                        day=day,
-                        youtube_title=content_output.title,
-                        youtube_script=content_output.youtube_script,
-                        youtube_seo_tags=content_output.seo_tags or [],
-                        youtube_cta=content_output.cta
+                    # Save to DailyContentDB
+                    daily_content_db = DailyContentDB(
+                        content_id=str(uuid.uuid4()),
+                        campaign_id=campaign_id,
+                        day_number=day,
+                        platform="youtube",  # Default platform
+                        video_script=content_output.youtube_script,
+                        video_title=content_output.title,
+                        seo_tags=content_output.seo_tags or [],
+                        call_to_action=content_output.cta,
+                        thumbnail_urls={}
                     )
                     
-                    campaign.daily_content[day] = daily_content
+                    db.add(daily_content_db)
                     self.gemini_call_count += 1
                     print(f"         ✓ Content generated")
                     
+                    # Image Generation (if enabled)
+                    if onboarding.get("image_generation_enabled", True):
+                        print(f"         🎨 Generating thumbnail...")
+                        try:
+                            content_dict = {
+                                "youtube_title": content_output.title,
+                                "youtube_script": content_output.youtube_script
+                            }
+                            image_url = await self.generate_image_for_content(content_dict)
+                            if image_url:
+                                daily_content_db.thumbnail_urls = {"youtube": image_url}
+                                print(f"         ✓ Thumbnail generated ({len(image_url)} bytes)")
+                            else:
+                                print(f"         ⚠️  Thumbnail generation returned None")
+                        except Exception as img_error:
+                            print(f"         ⚠️  Thumbnail failed: {str(img_error)[:50]}")
+                    
+                    # SEO Optimization (if enabled)
+                    if onboarding.get("seo_optimization_enabled", True):
+                        print(f"         🔍 Optimizing SEO...")
+                        try:
+                            content_dict = {
+                                "youtube_title": daily_content_db.video_title,
+                                "youtube_seo_tags": daily_content_db.seo_tags
+                            }
+                            optimized_content = await self.optimize_content_seo(content_dict)
+                            if optimized_content and 'youtube_seo_tags' in optimized_content:
+                                daily_content_db.seo_tags = optimized_content['youtube_seo_tags']
+                            print(f"         ✓ SEO optimized")
+                        except Exception as seo_error:
+                            print(f"         ⚠️  SEO optimization failed: {str(seo_error)[:50]}")
+                    
                 except Exception as content_error:
                     print(f"         ❌ Content generation failed: {str(content_error)[:100]}")
-                    # Create minimal placeholder on error
-                    daily_content = DailyContent(day=day)
-                    campaign.daily_content[day] = daily_content
                     continue
-                
-                # Image Generation (if enabled)
-                if campaign.onboarding and campaign.onboarding.image_generation_enabled:
-                    print(f"         🎨 Generating thumbnail...")
-                    try:
-                        # Convert Pydantic model to dict for image service
-                        content_dict = daily_content.model_dump()
-                        image_url = await self.generate_image_for_content(content_dict)
-                        if image_url:
-                            daily_content.thumbnail_url = image_url
-                            campaign.daily_content[day] = daily_content  # Update with thumbnail
-                            print(f"         ✓ Thumbnail generated ({len(image_url)} bytes)")
-                        else:
-                            print(f"         ⚠️  Thumbnail generation returned None")
-                    except Exception as img_error:
-                        print(f"         ⚠️  Thumbnail failed: {str(img_error)[:50]}")
-                
-                # SEO Optimization (if enabled)
-                if campaign.onboarding and campaign.onboarding.seo_optimization_enabled:
-                    print(f"         🔍 Optimizing SEO...")
-                    try:
-                        # Convert Pydantic model to dict for SEO service
-                        content_dict = daily_content.model_dump()
-                        optimized_content = await self.optimize_content_seo(content_dict)
-                        if optimized_content and 'youtube_seo_tags' in optimized_content:
-                            daily_content.youtube_seo_tags = optimized_content['youtube_seo_tags']
-                            campaign.daily_content[day] = daily_content
-                        print(f"         ✓ SEO optimized")
-                    except Exception as seo_error:
-                        print(f"         ⚠️  SEO optimization failed: {str(seo_error)[:50]}")
             
-            # Save campaign
-            campaign.updated_at = datetime.utcnow()
-            memory_store.update_campaign(campaign)
+            # Save campaign updates
+            campaign_db.updated_at = datetime.utcnow()
+            await db.commit()
+            
+            # Count generated content
+            result = await db.execute(
+                select(func.count(DailyContentDB.content_id)).where(DailyContentDB.campaign_id == campaign_id)
+            )
+            content_count = result.scalar() or 0
             
             print("\n" + "="*60)
             print(f"✅ CAMPAIGN WORKFLOW COMPLETE")
             print(f"📊 Total Gemini API calls: {self.gemini_call_count}")
-            print(f"📅 Content generated for {len(campaign.daily_content)} days")
-            images_count = sum(1 for c in campaign.daily_content.values() if isinstance(c, dict) and c.get('thumbnail_url'))
-            print(f"🎨 Images generated: {images_count}/{len(campaign.daily_content)}")
+            print(f"📅 Content generated for {content_count} days")
             print("="*60 + "\n")
             
         except Exception as e:
             print(f"\n❌ Campaign workflow failed: {e}")
             import traceback
             traceback.print_exc()
-            campaign.status = CampaignStatus.FAILED
-            memory_store.update_campaign(campaign)
+            campaign_db.status = "failed"
+            await db.commit()
             raise
     
     async def generate_image_for_content(self, content: Dict[str, Any]) -> Optional[str]:
@@ -550,10 +599,11 @@ class AgentOrchestrator:
         campaign.status = CampaignStatus.IN_PROGRESS
         return campaign
     
-    def analyze_campaign_outcome(
+    async def analyze_campaign_outcome(
         self,
         campaign: Campaign,
-        actual_metrics: Dict[str, Any]
+        actual_metrics: Dict[str, Any],
+        db: AsyncSession
     ) -> Campaign:
         """
         Analyze campaign outcome after completion and save learnings.
@@ -573,17 +623,20 @@ class AgentOrchestrator:
             for day, execution in campaign.daily_execution.items()
         }
         
+        # Extract goal from onboarding_data
+        goal_dict = campaign.onboarding_data.get("goal", {}) if campaign.onboarding_data else {}
+        
         outcome = self.outcome_agent.analyze_outcome(
-            campaign.onboarding.goal.model_dump() if campaign.onboarding else {},
+            goal_dict,
             actual_metrics,
-            campaign.plan.model_dump() if campaign.plan else {},
+            campaign.campaign_plan or {},
             daily_execution_dict
         )
         
         self.gemini_call_count += 1
         
         from ...models.campaign.campaign import CampaignReport
-        campaign.report = CampaignReport(
+        campaign.outcome_report = CampaignReport(
             goal_vs_result=outcome.goal_vs_result,
             what_worked=outcome.what_worked,
             what_failed=outcome.what_failed,
@@ -595,46 +648,48 @@ class AgentOrchestrator:
         self.gemini_call_count += 1
         
         # Save learning memory for future campaigns
-        self._save_learning_memory(campaign, outcome)
+        await self._save_learning_memory(campaign, outcome, db)
         
         return campaign
     
-    def _save_learning_memory(self, campaign: Campaign, outcome) -> None:
+    async def _save_learning_memory(self, campaign: Campaign, outcome, db: AsyncSession) -> None:
         """Save campaign outcome as learning memory for future campaigns."""
-        from ...storage.memory_store import memory_store
-        from ...models.campaign import LearningMemory
+        from ...models.campaign.learning_memory import LearningMemory
         import uuid
         
-        if not campaign.onboarding:
+        if not campaign.onboarding_data:
             return
         
         # Get creator profile for niche
-        profile = memory_store.get_creator_profile(campaign.user_id)
-        niche = "Unknown"
-        if profile and profile.creator_identity:
-            niche = profile.creator_identity.get('niche', 'Unknown')
+        result = await db.execute(select(CreatorProfileDB).where(CreatorProfileDB.user_id == campaign.user_id))
+        profile = result.scalar_one_or_none()
+        niche = profile.niche if profile else "Unknown"
         
         # Determine primary platform
-        platform = campaign.onboarding.goal.platforms[0] if campaign.onboarding.goal.platforms else "Unknown"
+        platforms = campaign.onboarding_data.get("goal", {}).get("platforms", [])
+        platform = platforms[0] if platforms else "Unknown"
         
-        # Create learning memory
-        learning = LearningMemory(
-            id=f"lm_{uuid.uuid4().hex[:12]}",
+        goal_data = campaign.onboarding_data.get("goal", {})
+        
+        # Create learning memory in database
+        learning_db = LearningMemoryDB(
+            memory_id=str(uuid.uuid4()),
             user_id=campaign.user_id,
             campaign_id=campaign.campaign_id,
-            goal_type=campaign.onboarding.goal.goal_type,
+            goal_type=goal_data.get("goal_type", "growth"),
             platform=platform,
             niche=niche,
-            what_worked=outcome.what_worked,
-            what_failed=outcome.what_failed,
-            next_campaign_suggestions=outcome.next_campaign_suggestions,
-            goal_vs_result=outcome.goal_vs_result,
-            duration_days=campaign.onboarding.goal.duration_days,
-            intensity=campaign.onboarding.goal.intensity
+            campaign_duration_days=goal_data.get("duration_days", 3),
+            posting_frequency=goal_data.get("intensity", "moderate"),
+            what_worked=outcome.what_worked or [],
+            what_failed=outcome.what_failed or [],
+            recommendations=outcome.next_campaign_suggestions or [],
+            goal_achievement_summary=outcome.goal_vs_result or ""
         )
         
-        memory_store.create_learning_memory(learning)
-        print(f"      💡 Learning memory saved: {learning.id}")
+        db.add(learning_db)
+        await db.commit()
+        print(f"      💡 Learning memory saved: {learning_db.memory_id}")
     
     def reset_call_count(self):
         """Reset Gemini call counter (for new campaign)."""

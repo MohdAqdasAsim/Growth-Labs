@@ -118,29 +118,33 @@ class Campaign(BaseModel):
     user_id: str
     
     # Campaign Onboarding Data
-    onboarding: Optional[CampaignOnboarding] = None
+    onboarding_data: Optional[CampaignOnboarding] = None
     
     # Lifecycle Status
     status: CampaignStatus = Field(default=CampaignStatus.ONBOARDING_INCOMPLETE)
     
     # Global Memory Snapshot (taken at creation)
-    global_memory_snapshot: dict = Field(default_factory=dict, description="Copy of CreatorProfile at campaign creation")
+    profile_snapshot: dict = Field(default_factory=dict, description="Copy of CreatorProfile at campaign creation")
+    
+    # Archive Tracking
+    archived_at: Optional[datetime] = Field(None, description="When campaign was archived")
+    archived_reason: Optional[str] = Field(None, description="Reason for archival: plan_expired, user_deleted, abuse")
     
     # Learning from Previous Campaigns
-    learning_from_previous: Optional[dict] = Field(None, description="Insights from past campaigns")
+    learning_insights: Optional[dict] = Field(None, description="Insights from past campaigns")
     learning_approved: bool = Field(default=False, description="User approved/modified lessons")
     
     # Planning Phase Outputs
     strategy_output: dict = Field(default_factory=dict)
     forensics_output: dict = Field(default_factory=dict, description="Combined all platforms")
-    plan: Optional[CampaignPlan] = None
+    campaign_plan: Optional[CampaignPlan] = None
     plan_approved: bool = Field(default=False, description="User approved the generated plan")
-    reality_warning: Optional[dict] = None
+    content_warnings: Optional[dict] = None
     
     # Execution Tracking
     daily_content: dict[int, DailyContent] = Field(default_factory=dict)
     daily_execution: dict[int, DailyExecution] = Field(default_factory=dict, description="Track actual posting per day")
-    report: Optional[CampaignReport] = None
+    outcome_report: Optional[CampaignReport] = None
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow, description="When campaign was created")
@@ -165,7 +169,7 @@ class CampaignResponse(BaseModel):
     goal: Optional[CampaignGoal] = None
     target_platforms: Optional[list[str]] = None
     status: str
-    plan: Optional[CampaignPlan] = None
+    campaign_plan: Optional[CampaignPlan] = None
     plan_approved: bool = False
     created_at: datetime
     updated_at: datetime

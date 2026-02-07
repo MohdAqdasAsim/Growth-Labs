@@ -3,10 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
 from datetime import datetime
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models.user.user import CreatorProfile
+from ...models.db.user import CreatorProfileDB
 from ...api.auth.auth import get_current_user_id
-from ...storage.memory_store import memory_store
+from ...database.session import get_db
 from ...agents.core.context_analyzer import ContextAnalyzer
 from ...services.platforms.youtube_service import YouTubeService
 from ...services.platforms.twitter_service import TwitterService
@@ -31,31 +34,48 @@ class OnboardingRequest(BaseModel):
 @router.post("", response_model=CreatorProfile, status_code=status.HTTP_201_CREATED)
 async def create_creator_profile(
     request: OnboardingRequest,
-    user_id: Annotated[str, Depends(get_current_user_id)]
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Phase 1: Global Onboarding (Required)
     Collects 4 essential fields and triggers Context Analyzer.
     """
     # Check if profile already exists
-    existing_profile = memory_store.get_profile(user_id)
+    result = await db.execute(select(CreatorProfileDB).where(CreatorProfileDB.user_id == user_id))
+    existing_profile = result.scalar_one_or_none()
     
-    # Create or update profile
-    profile = CreatorProfile(
-        user_id=user_id,
-        user_name=request.user_name,
-        creator_type=request.creator_type,
-        niche=request.niche,
-        target_audience_niche=request.target_audience_niche,
-        created_at=existing_profile.created_at if existing_profile else datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+    if existing_profile:
+        # Update existing profile
+        existing_profile.user_name = request.user_name
+        existing_profile.creator_type = request.creator_type
+        existing_profile.niche = request.niche
+        existing_profile.target_audience_niche = request.target_audience_niche
+        existing_profile.updated_at = datetime.utcnow()
+        profile_db = existing_profile
+    else:
+        # Create new profile
+        profile_db = CreatorProfileDB(
+            user_id=user_id,
+            user_name=request.user_name,
+            creator_type=request.creator_type,
+            niche=request.niche,
+            target_audience_niche=request.target_audience_niche
+        )
+        db.add(profile_db)
     
-    memory_store.create_or_update_profile(profile)
+    await db.commit()
+    await db.refresh(profile_db)
     
     # Trigger Context Analyzer (fetches historical content automatically)
     try:
-        creator_data = profile.model_dump()
+        creator_data = {
+            "user_id": profile_db.user_id,
+            "user_name": profile_db.user_name,
+            "creator_type": profile_db.creator_type,
+            "niche": profile_db.niche,
+            "target_audience_niche": profile_db.target_audience_niche
+        }
         
         # Note: Context Analyzer will attempt to auto-fetch user's content
         # based on niche and available public data
@@ -64,32 +84,84 @@ async def create_creator_profile(
         context_output = context_analyzer.analyze(creator_data)
         
         # Update profile with analyzed data
-        profile.historical_metrics["_analyzed_context"] = context_output.model_dump()
-        profile.historical_metrics["_context_analyzed_at"] = datetime.utcnow().isoformat()
-        profile.posting_frequency = context_output.strategic_insights.get(
+        agent_context = profile_db.agent_context or {}
+        agent_context["_analyzed_context"] = context_output.model_dump()
+        agent_context["_context_analyzed_at"] = datetime.utcnow().isoformat()
+        
+        profile_db.agent_context = agent_context
+        profile_db.recommended_frequency = context_output.strategic_insights.get(
             'realistic_posting_frequency', 
             'Not yet determined'
         )
         
-        memory_store.create_or_update_profile(profile)
+        await db.commit()
+        await db.refresh(profile_db)
         
     except Exception as e:
         print(f"Context Analyzer failed: {e}")
         # Continue without analysis - not critical for onboarding
     
-    return profile
+    # Convert to Pydantic model for response
+    return CreatorProfile(
+        user_id=profile_db.user_id,
+        user_name=profile_db.user_name,
+        creator_type=profile_db.creator_type,
+        niche=profile_db.niche,
+        target_audience_niche=profile_db.target_audience_niche,
+        unique_angle=profile_db.unique_angle,
+        self_purpose=profile_db.self_purpose,
+        self_strengths=profile_db.self_strengths or [],
+        existing_platforms=profile_db.existing_platforms or [],
+        target_platforms=profile_db.target_platforms or [],
+        self_topics=profile_db.self_topics or [],
+        target_audience_demographics=profile_db.target_audience_demographics,
+        competitor_accounts=profile_db.competitor_accounts or {},
+        existing_assets=profile_db.existing_assets or [],
+        self_motivation=profile_db.self_motivation,
+        recommended_frequency=profile_db.recommended_frequency,
+        agent_context=profile_db.agent_context or {},
+        phase2_completed=profile_db.phase2_completed,
+        created_at=profile_db.created_at,
+        updated_at=profile_db.updated_at
+    )
 
 
 @router.get("", response_model=CreatorProfile)
 async def get_creator_profile(
-    user_id: Annotated[str, Depends(get_current_user_id)]
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: AsyncSession = Depends(get_db)
 ):
     """Get creator profile for current user."""
-    profile = memory_store.get_profile(user_id)
-    if not profile:
+    result = await db.execute(select(CreatorProfileDB).where(CreatorProfileDB.user_id == user_id))
+    profile_db = result.scalar_one_or_none()
+    
+    if not profile_db:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Creator profile not found. Complete onboarding first."
         )
-    return profile
+    
+    # Convert to Pydantic model for response
+    return CreatorProfile(
+        user_id=profile_db.user_id,
+        user_name=profile_db.user_name,
+        creator_type=profile_db.creator_type,
+        niche=profile_db.niche,
+        target_audience_niche=profile_db.target_audience_niche,
+        unique_angle=profile_db.unique_angle,
+        self_purpose=profile_db.self_purpose,
+        self_strengths=profile_db.self_strengths or [],
+        existing_platforms=profile_db.existing_platforms or [],
+        target_platforms=profile_db.target_platforms or [],
+        self_topics=profile_db.self_topics or [],
+        target_audience_demographics=profile_db.target_audience_demographics,
+        competitor_accounts=profile_db.competitor_accounts or {},
+        existing_assets=profile_db.existing_assets or [],
+        self_motivation=profile_db.self_motivation,
+        recommended_frequency=profile_db.recommended_frequency,
+        agent_context=profile_db.agent_context or {},
+        phase2_completed=profile_db.phase2_completed,
+        created_at=profile_db.created_at,
+        updated_at=profile_db.updated_at
+    )
 

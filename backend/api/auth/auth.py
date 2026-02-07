@@ -1,89 +1,208 @@
-"""Authentication API routes."""
-from fastapi import APIRouter, Depends, HTTPException, status
+"""Authentication API routes - Clerk integration."""
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Annotated
+from typing import Annotated, Optional
 import uuid
-from datetime import timedelta
+from datetime import datetime
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+import hmac
+import hashlib
 
-from ...models.user.user import UserCreate, UserLogin, Token, User
-from ...services.core.auth_service import AuthService
-from ...storage.memory_store import memory_store
-from ...config import JWT_EXPIRATION_HOURS
+from ...models.user.user import User
+from ...models.db.user import UserDB
+from ...models.db.subscription import SubscriptionDB, UsageMetricDB
+from ...services.core.clerk_service import clerk_service
+from ...database.session import get_db
+from ...config import CLERK_WEBHOOK_SECRET
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
-auth_service = AuthService()
 
 
 async def get_current_user_id(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    db: AsyncSession = Depends(get_db)
 ) -> str:
-    """Dependency to get current user ID from JWT token."""
+    """
+    Dependency to get current user ID from Clerk JWT token.
+    
+    Verifies Clerk session token and returns internal user_id.
+    """
     token = credentials.credentials
     
-    # Check blacklist
-    if memory_store.is_token_blacklisted(token):
+    # Verify Clerk JWT token
+    payload = await clerk_service.verify_token(token)
+    if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been revoked"
+            detail="Invalid or expired token"
         )
     
-    user_id = auth_service.get_user_id_from_token(token)
-    if not user_id:
+    # Extract Clerk user ID
+    user_info = clerk_service.extract_user_info(payload)
+    clerk_user_id = user_info.get("clerk_user_id")
+    
+    if not clerk_user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials"
+            detail="Invalid token payload"
         )
     
-    return user_id
-
-
-@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate):
-    """Register a new user."""
-    # Check if user already exists
-    existing_user = memory_store.get_user_by_email(user_data.email)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Create user
-    user_id = str(uuid.uuid4())
-    hashed_password = auth_service.get_password_hash(user_data.password)
-    user = User(
-        user_id=user_id,
-        email=user_data.email,
-        hashed_password=hashed_password
+    # Get user from database by clerk_user_id
+    result = await db.execute(
+        select(UserDB).where(UserDB.clerk_user_id == clerk_user_id)
     )
-    memory_store.create_user(user)
+    user = result.scalar_one_or_none()
     
-    # Generate token
-    access_token = auth_service.create_access_token(
-        data={"sub": user_id},
-        expires_delta=timedelta(hours=JWT_EXPIRATION_HOURS)
-    )
-    
-    return Token(access_token=access_token)
-
-
-@router.post("/login", response_model=Token)
-async def login(credentials: UserLogin):
-    """Login and get JWT token."""
-    user = memory_store.get_user_by_email(credentials.email)
-    if not user or not auth_service.verify_password(credentials.password, user.hashed_password):
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="User not found - please complete signup via webhook"
         )
     
-    access_token = auth_service.create_access_token(
-        data={"sub": user.user_id},
-        expires_delta=timedelta(hours=JWT_EXPIRATION_HOURS)
-    )
+    # Update last_login_at
+    user.last_login_at = datetime.utcnow()
+    await db.commit()
     
-    return Token(access_token=access_token)
+    return user.user_id
+
+
+@router.post("/webhooks/clerk", status_code=status.HTTP_200_OK)
+async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Webhook endpoint for Clerk user events.
+    
+    Handles: user.created, user.updated, user.deleted
+    Configure in Clerk Dashboard → Webhooks
+    """
+    # Verify webhook signature
+    signature = request.headers.get("svix-signature", "")
+    timestamp = request.headers.get("svix-timestamp", "")
+    payload = await request.body()
+    
+    # Verify signature (Svix format)
+    expected_signature = hmac.new(
+        CLERK_WEBHOOK_SECRET.encode(),
+        f"{timestamp}.{payload.decode()}".encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    if not hmac.compare_digest(signature.split(",")[0].split("=")[1], expected_signature):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook signature"
+        )
+    
+    # Parse event
+    import json
+    event = json.loads(payload)
+    event_type = event.get("type")
+    data = event.get("data", {})
+    
+    if event_type == "user.created":
+        # Create new user in database
+        clerk_user_id = data.get("id")
+        email = data.get("email_addresses", [{}])[0].get("email_address")
+        
+        if not clerk_user_id or not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing required user data"
+            )
+        
+        # Check if user already exists
+        result = await db.execute(
+            select(UserDB).where(UserDB.clerk_user_id == clerk_user_id)
+        )
+        existing_user = result.scalar_one_or_none()
+        
+        if not existing_user:
+            # Create user
+            user_id = str(uuid.uuid4())
+            new_user = UserDB(
+                user_id=user_id,
+                clerk_user_id=clerk_user_id,
+                email=email
+            )
+            db.add(new_user)
+            
+            # Create default subscription (free tier)
+            subscription = SubscriptionDB(
+                subscription_id=str(uuid.uuid4()),
+                user_id=user_id,
+                plan_tier="free",
+                status="active",
+                current_period_start=datetime.utcnow().date(),
+                current_period_end=(datetime.utcnow().date()),  # Will be set by subscription logic
+                auto_renew_enabled=False
+            )
+            db.add(subscription)
+            
+            # Create usage metrics
+            usage = UsageMetricDB(
+                user_id=user_id,
+                campaigns_created=0,
+                campaigns_limit=3,  # Free tier limit
+                image_credits_base=0,
+                image_credits_topup=0,
+                image_credits_used_this_month=0,
+                last_reset_at=datetime.utcnow()
+            )
+            db.add(usage)
+            
+            await db.commit()
+    
+    elif event_type == "user.updated":
+        # Update user email if changed
+        clerk_user_id = data.get("id")
+        email = data.get("email_addresses", [{}])[0].get("email_address")
+        
+        if clerk_user_id:
+            result = await db.execute(
+                select(UserDB).where(UserDB.clerk_user_id == clerk_user_id)
+            )
+            user = result.scalar_one_or_none()
+            if user and email:
+                user.email = email
+                await db.commit()
+    
+    elif event_type == "user.deleted":
+        # Delete user (CASCADE will handle related records)
+        clerk_user_id = data.get("id")
+        if clerk_user_id:
+            result = await db.execute(
+                select(UserDB).where(UserDB.clerk_user_id == clerk_user_id)
+            )
+            user = result.scalar_one_or_none()
+            if user:
+                await db.delete(user)
+                await db.commit()
+    
+    return {"status": "success"}
+
+
+@router.get("/me", response_model=User)
+async def get_current_user(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current user profile."""
+    result = await db.execute(select(UserDB).where(UserDB.user_id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return User(
+        user_id=user.user_id,
+        email=user.email,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at
+    )
 
 
 @router.post("/logout")

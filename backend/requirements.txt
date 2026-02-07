@@ -10,3 +10,12 @@ beautifulsoup4==4.12.2
 httpx==0.25.1
 python-multipart==0.0.6
 lxml==4.9.3
+
+# Database (PostgreSQL + ORM)
+sqlalchemy==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+
+# Clerk Authentication
+pyjwt[crypto]==2.8.0
+cryptography==41.0.7

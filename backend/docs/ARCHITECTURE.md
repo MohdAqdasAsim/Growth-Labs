@@ -222,13 +222,12 @@ class CampaignGoal(BaseModel):
     duration_days: int                     # 3-30 days
     intensity: str                         # "light", "moderate", "intense"
 
-# NEW: Agent Configuration
+# UPDATED: Agent Configuration (Simplified)
 class AgentConfig(BaseModel):
-    run_strategy: bool = True
-    run_forensics: bool = True
-    run_planner: bool = True
-    run_content: bool = True
-    run_outcome: bool = True
+    """Agent toggles - only forensics is optional.
+    Strategy, planner, content, and outcome are required for campaign success.
+    """
+    run_forensics: bool = True  # Only forensics can be disabled
 
 # NEW: Campaign Onboarding Data
 class CampaignOnboarding(BaseModel):
@@ -438,7 +437,7 @@ class MemoryStore:
 
 | Method | Endpoint | Purpose | Status |
 |--------|----------|---------|--------|
-| `POST` | `/onboarding` | Create Phase 1 profile (5 fields only) | **MODIFIED** |
+| `POST` | `/onboarding` | Create Phase 1 profile (4 fields: user_name, creator_type, niche, target_audience_niche) - Uses JSON body with OnboardingRequest model | **MODIFIED** |
 | `GET` | `/onboarding` | Get creator profile | **KEEP** |
 | `DELETE` | `/onboarding/phase2` | REMOVED | **DELETE** |
 
@@ -507,7 +506,9 @@ class MemoryStore:
 | `POST` | `/campaigns/{id}/start` | Manual start - executes agent workflow | **NEW** |
 | `GET` | `/campaigns/{id}` | Get campaign details | **KEEP** |
 | `PATCH` | `/campaigns/{id}` | Edit campaign (only if not started) | **NEW** |
-| `DELETE` | `/campaigns/{id}` | Delete campaign (only if not started) | **NEW** |
+| `DELETE` | `/campaigns/{id}` | Delete campaign (only if not started) - Uses memory_store.delete_campaign() | **NEW** |
+
+**Note:** DELETE endpoint has two implementations in campaigns.py (lines 301 and 547). Line 547 is the correct implementation using memory_store.delete_campaign(). Line 301 should be removed.
 | `POST` | `/campaigns/{id}/complete` | Mark campaign complete, generate report | **KEEP** |
 | `PATCH` | `/campaigns/{id}/execute/{day}` | Confirm daily posting | **KEEP** |
 | `GET` | `/campaigns/{id}/schedule` | Get campaign schedule | **KEEP** |
@@ -532,14 +533,13 @@ class MemoryStore:
 
 #### **Image Generation API (NEW)**
 
-**File:** `backend/api/image_gen.py` (NEW FILE)
+**File:** `backend/services/image_service.py` (IMPLEMENTED)
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| `POST` | `/image/generate` | Generate image using Nano Banana 2.5 Flash |
-| `GET` | `/image/{id}` | Get generated image by ID |
+**Purpose:** Generate images using Pollinations.ai Flux model
 
-#### **SEO Optimization API (NEW)**
+**Integration:** Called directly by agent_orchestrator during content generation
+
+**Note:** Uses Pollinations.ai REST API instead of Nano Banana 2.5 Flash as originally planned.
 
 **File:** `backend/api/seo.py` (NEW FILE)
 
@@ -628,33 +628,42 @@ class MemoryStore:
 
 ## 6. New Services
 
-### **6.1 Image Service (NEW)**
+### **6.1 Image Service (IMPLEMENTED)**
 
-**File:** `backend/services/image_service.py` (NEW FILE)
+**File:** `backend/services/image_service.py` (IMPLEMENTED)
 
-**Purpose:** Generate images using Nano Banana 2.5 Flash model
+**Purpose:** Generate images using Pollinations.ai Flux model
+
+**Implementation Notes:**
+- Uses Pollinations.ai public REST API
+- Model: Flux (fast, high-quality image generation)
+- No API key required (public endpoint)
+- Returns image URLs directly
+- Environment variable: `POLLINATIONS_API_KEY` (for potential future paid tiers)
 
 **Methods:**
 ```python
 class ImageService:
     def __init__(self):
-        self.api_key = config.NANO_BANANA_API_KEY
-        self.model = "nano-banana-2.5-flash"
+        self.api_url = "https://image.pollinations.ai/prompt/"
+        self.model = "flux"  # Pollinations Flux model
     
-    async def generate_image(self, prompt: str, style: str = "realistic") -> str:
+    async def generate_image(self, prompt: str, width: int = 1024, height: int = 1024) -> str:
         """
         Generates image from text prompt.
-        Returns image URL or base64.
+        Returns image URL from Pollinations.ai.
         """
         pass
     
-    async def generate_thumbnail(self, content: DailyContent) -> str:
+    async def generate_thumbnail(self, content: DailyContent, platform: str) -> str:
         """
         Generates thumbnail for content based on title/hook/description.
         Returns image URL.
         """
         pass
 ```
+
+**Note:** Implementation changed from Nano Banana 2.5 Flash to Pollinations.ai Flux for simpler integration and no API key requirements.
 
 ---
 
@@ -687,9 +696,109 @@ class SEOService:
 
 ---
 
+## 6.3 LearningMemory Model (NEW - IMPLEMENTED)
+
+**File:** `backend/models/campaign/learning_memory.py` (IMPLEMENTED)
+
+**Purpose:** Store structured insights from completed campaigns to improve future campaign planning
+
+**Model Structure:**
+```python
+class LearningMemory(BaseModel):
+    """Stores insights from completed campaigns for learning."""
+    memory_id: str                         # Unique ID for this memory
+    user_id: str                           # Creator who ran the campaign
+    campaign_id: str                       # Source campaign
+    
+    # Campaign Context
+    goal_type: str                         # "growth", "engagement", "monetization", "launch"
+    platforms: list[str]                   # Platforms used
+    niche: str                             # Creator's niche
+    duration_days: int                     # Campaign length
+    
+    # Outcome Analysis
+    what_worked: list[str]                 # Successful strategies/tactics
+    what_failed: list[str]                 # Unsuccessful attempts
+    key_insights: list[str]                # Major learnings
+    recommended_adjustments: list[str]      # Suggestions for next time
+    
+    # Metadata
+    created_at: datetime                   # When insight was captured
+```
+
+**Integration:**
+- Generated by Outcome Agent after campaign completion
+- Retrieved by Strategy Agent when planning similar campaigns
+- Filtered by goal_type, platform, and niche for relevance
+- Stored in memory_store.campaign_insights
+
+**Usage Example:**
+When creating a new "growth" campaign for YouTube, the system automatically retrieves all previous "growth" YouTube campaigns for the same niche and shows the user:
+- What content types performed best
+- Which posting times got most engagement
+- Which strategies to avoid
+- Recommended adjustments
+
+---
+
+## 6.4 Goal Type Conditional Logic (NEW - IMPLEMENTED)
+
+**Purpose:** Adapt agent strategies based on campaign goal type
+
+**Implementation:** Agent prompt files modified to include conditional instructions based on `goal_type`
+
+**Modified Prompts:**
+1. `backend/prompts/agent2_strategy.txt` - Strategic approach varies by goal
+2. `backend/prompts/agent4_planner.txt` - Content planning adapts to goal
+3. `backend/prompts/agent5_content.txt` - Content style matches goal
+
+**Goal Types:**
+- **growth:** Focus on reach, virality, subscriber/follower acquisition
+- **engagement:** Focus on community building, comments, shares, watch time
+- **monetization:** Focus on conversion, affiliate links, sponsorships, products
+- **launch:** Focus on announcement timing, hype building, first impressions
+
+**Example Conditional Logic (from agent2_strategy.txt):**
+```
+If goal_type is "growth":
+  - Prioritize viral content formats
+  - Focus on trending topics
+  - Optimize for shareability
+
+If goal_type is "engagement":
+  - Prioritize community interaction
+  - Include polls, questions, calls-to-action
+  - Focus on watch time and retention
+
+If goal_type is "monetization":
+  - Include clear conversion opportunities
+  - Focus on product/service mentions
+  - Optimize for click-through rates
+
+If goal_type is "launch":
+  - Build anticipation and hype
+  - Schedule teaser content
+  - Coordinate simultaneous multi-platform posts
+```
+
+**Impact:**
+- More targeted strategies
+- Better alignment with creator goals
+- Higher campaign success rates
+
+---
+
 ## 7. Frontend Changes
 
-### **7.1 Onboarding Page**
+### **STATUS: OUT OF SCOPE - HANDLED BY SEPARATE TEAM**
+
+The frontend implementation is being developed by a separate team member and is not documented in this backend architecture document. The backend APIs are fully functional and ready for frontend integration.
+
+For frontend integration details, refer to the frontend developer's documentation.
+
+---
+
+### **7.1 Onboarding Page (Frontend - Out of Scope)**
 
 #### **Current: [frontend/src/pages/Onboarding.jsx](frontend/src/pages/Onboarding.jsx)**
 
@@ -723,7 +832,9 @@ class SEOService:
 
 ---
 
-### **7.2 Profile Page (NEW)**
+### **7.2 Profile Page (Frontend - Out of Scope)**
+
+**STATUS:** Out of scope - Frontend team responsibility
 
 **File:** `frontend/src/pages/Profile.jsx` (NEW FILE)
 
@@ -755,7 +866,9 @@ class SEOService:
 
 ---
 
-### **7.3 Campaign Creation Flow**
+### **7.3 Campaign Creation Flow (Frontend - Out of Scope)**
+
+**STATUS:** Out of scope - Frontend team responsibility
 
 #### **Current: [frontend/src/pages/PlanCampaign.jsx](frontend/src/pages/PlanCampaign.jsx)**
 
@@ -830,7 +943,9 @@ class SEOService:
 
 ---
 
-### **7.4 Campaign Detail Page**
+### **7.4 Campaign Detail Page (Frontend - Out of Scope)**
+
+**STATUS:** Out of scope - Frontend team responsibility
 
 #### **Current: [frontend/src/pages/CampaignDetail.jsx](frontend/src/pages/CampaignDetail.jsx)**
 
@@ -875,7 +990,9 @@ class SEOService:
 
 ---
 
-### **7.5 Dashboard Updates**
+### **7.5 Dashboard Updates (Frontend - Out of Scope)**
+
+**STATUS:** Out of scope - Frontend team responsibility
 
 #### **Current: [frontend/src/pages/Dashboard.jsx](frontend/src/pages/Dashboard.jsx)**
 
@@ -922,7 +1039,7 @@ class SEOService:
 | File | Status | Changes |
 |------|--------|---------|
 | [backend/models/user.py](backend/models/user.py) | **MODIFY** | Phase 1: 15→5 fields, Phase 2: 15→11 fields, add `creator_type`, `user_name`, `phase2_completed` |
-| [backend/models/campaign.py](backend/models/campaign.py) | **MAJOR REFACTOR** | Add `CampaignOnboarding`, `AgentConfig`, `CompetitorPlatform`, update `CampaignGoal`, add timestamps |
+| [backend/models/campaign.py](backend/models/campaign.py) | **MAJOR REFACTOR** | Add `CampaignOnboarding`, `AgentConfig` (1 toggle), `CompetitorPlatform`, update `CampaignGoal`, add timestamps |
 | [backend/api/onboarding.py](backend/api/onboarding.py) | **MODIFY** | Simplify `POST /onboarding` to 5 fields, remove `PATCH /phase2` |
 | [backend/api/profile.py](backend/api/profile.py) | **NEW FILE** | Add Phase 2 management endpoints |
 | [backend/api/campaigns.py](backend/api/campaigns.py) | **MAJOR REFACTOR** | Separate creation/execution, add onboarding endpoints, add edit/delete |
@@ -930,20 +1047,23 @@ class SEOService:
 | [backend/api/seo.py](backend/api/seo.py) | **NEW FILE** | SEO optimization API |
 | [backend/storage/memory_store.py](backend/storage/memory_store.py) | **MODIFY** | Add campaign history tracking, lessons learned storage |
 | [backend/services/agent_orchestrator.py](backend/services/agent_orchestrator.py) | **MAJOR REFACTOR** | Add agent toggles, learning integration, image/SEO integration |
-| [backend/services/image_service.py](backend/services/image_service.py) | **NEW FILE** | Nano Banana 2.5 Flash integration |
+| [backend/services/image_service.py](backend/services/image_service.py) | **NEW FILE** | Pollinations.ai Flux integration |
 | [backend/services/seo_service.py](backend/services/seo_service.py) | **NEW FILE** | SEO optimization service |
-| [backend/config.py](backend/config.py) | **MODIFY** | Add `NANO_BANANA_API_KEY` |
+| [backend/models/campaign/learning_memory.py](backend/models/campaign/learning_memory.py) | **NEW FILE** | LearningMemory model for campaign insights storage |
+| [backend/config.py](backend/config.py) | **MODIFY** | Add `POLLINATIONS_API_KEY` (for future paid tier if needed) |
 
 ### **Frontend Files**
 
+**STATUS: OUT OF SCOPE - All frontend development handled by separate team**
+
 | File | Status | Changes |
 |------|--------|---------|
-| [frontend/src/pages/Onboarding.jsx](frontend/src/pages/Onboarding.jsx) | **MAJOR REFACTOR** | Simplify to 5 fields, add API integration |
-| [frontend/src/pages/Profile.jsx](frontend/src/pages/Profile.jsx) | **NEW FILE** | Phase 2 completion page |
-| [frontend/src/pages/CreateCampaign.jsx](frontend/src/pages/CreateCampaign.jsx) | **NEW FILE** | 4-step campaign onboarding wizard |
-| [frontend/src/pages/CampaignDetail.jsx](frontend/src/pages/CampaignDetail.jsx) | **MAJOR REFACTOR** | Add API integration, start button, edit/delete |
-| [frontend/src/pages/Dashboard.jsx](frontend/src/pages/Dashboard.jsx) | **MODIFY** | Add API calls for onboarding/profile/campaigns |
-| [frontend/src/pages/PlanCampaign.jsx](frontend/src/pages/PlanCampaign.jsx) | **DEPRECATE** | Replace with CreateCampaign.jsx |
+| [frontend/src/pages/Onboarding.jsx](frontend/src/pages/Onboarding.jsx) | **OUT OF SCOPE** | See frontend team documentation |
+| [frontend/src/pages/Profile.jsx](frontend/src/pages/Profile.jsx) | **OUT OF SCOPE** | See frontend team documentation |
+| [frontend/src/pages/CreateCampaign.jsx](frontend/src/pages/CreateCampaign.jsx) | **OUT OF SCOPE** | See frontend team documentation |
+| [frontend/src/pages/CampaignDetail.jsx](frontend/src/pages/CampaignDetail.jsx) | **OUT OF SCOPE** | See frontend team documentation |
+| [frontend/src/pages/Dashboard.jsx](frontend/src/pages/Dashboard.jsx) | **OUT OF SCOPE** | See frontend team documentation |
+| [frontend/src/pages/PlanCampaign.jsx](frontend/src/pages/PlanCampaign.jsx) | **OUT OF SCOPE** | See frontend team documentation |
 
 ---
 
