@@ -4,9 +4,10 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional, List
 from datetime import datetime
-import google.generativeai as genai
+import requests
+# import google.generativeai as genai  # Commented for Pollinations testing
 
-from ...config import GEMINI_API_KEY, GEMINI_MODEL
+from ...config import GEMINI_API_KEY, GEMINI_MODEL, POLLINATIONS_API_KEY
 from ...models.agents.agent_outputs import (
     ContextAnalyzerOutput,
     StrategyAgentOutput,
@@ -31,11 +32,10 @@ class GeminiService:
     """Service for interacting with Gemini 3 Flash API."""
     
     def __init__(self):
-        """Initialize Gemini client."""
-        if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY environment variable is not set")
-        genai.configure(api_key=GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(GEMINI_MODEL)
+        """Initialize Gemini client with Pollinations fallback for testing."""
+        # ⚠️ TESTING MODE: Use Pollinations API instead of Gemini
+        self.use_pollinations = True
+        self.pollinations_url = "https://text.pollinations.ai"
         
         # Cache for loaded prompts
         self._prompt_cache: Dict[str, str] = {}
@@ -76,6 +76,67 @@ class GeminiService:
         self._prompt_cache[filename] = prompt
         return prompt
     
+    def _generate_json_pollinations(self, prompt: str, output_schema: type[Any], system_instruction: Optional[str] = None) -> Any:
+        """Use Pollinations text API for testing."""
+        try:
+            # Build full prompt
+            full_prompt = prompt
+            if system_instruction:
+                full_prompt = f"{system_instruction}\n\n{prompt}"
+            
+            # Build detailed schema with type info
+            schema_fields = []
+            for field_name, field_info in output_schema.model_fields.items():
+                field_type = str(field_info.annotation)
+                # Simplify type hints for clarity
+                if 'list[str]' in field_type or 'List[str]' in field_type:
+                    schema_fields.append(f'"{field_name}": ["string1", "string2", ...]')
+                elif 'dict' in field_type or 'Dict' in field_type:
+                    schema_fields.append(f'"{field_name}": {{"key": "value"}}')
+                else:
+                    schema_fields.append(f'"{field_name}": "value"')
+            
+            schema_example = "{" + ", ".join(schema_fields) + "}"
+            schema_instruction = f"\n\nIMPORTANT: Return ONLY valid JSON matching this structure: {schema_example}. No markdown, no extra text, just JSON."
+            full_prompt += schema_instruction
+            
+            # Call Pollinations text API (using mistral model)
+            response = requests.post(
+                self.pollinations_url,
+                json={
+                    "messages": [{"role": "user", "content": full_prompt}],
+                    "model": "mistral",
+                    "jsonMode": True
+                },
+                timeout=30
+            )
+            
+            if response.status_code != 200:
+                raise ValueError(f"Pollinations API error: {response.status_code} - {response.text}")
+            
+            json_text = response.text.strip()
+            
+            # Clean markdown
+            if json_text.startswith("```json"):
+                json_text = json_text[7:].strip()
+            elif json_text.startswith("```"):
+                json_text = json_text[3:].strip()
+            if json_text.endswith("```"):
+                json_text = json_text[:-3].strip()
+            
+            # Extract JSON
+            if '{' in json_text:
+                start = json_text.index('{')
+                end = json_text.rindex('}') + 1
+                json_text = json_text[start:end]
+            
+            # Parse and validate
+            data = json.loads(json_text)
+            return output_schema(**data)
+            
+        except Exception as e:
+            raise ValueError(f"Pollinations API call failed: {str(e)}")
+    
     def generate_json(
         self,
         prompt: str,
@@ -83,7 +144,7 @@ class GeminiService:
         system_instruction: Optional[str] = None
     ) -> Any:
         """
-        Generate structured JSON output from Gemini.
+        Generate structured JSON output from Gemini or Pollinations.
         
         Args:
             prompt: The input prompt
@@ -95,6 +156,10 @@ class GeminiService:
         
         Note: One call per execution, no retries per design principles.
         """
+        # ⚠️ TESTING MODE: Use Pollinations API
+        if self.use_pollinations:
+            return self._generate_json_pollinations(prompt, output_schema, system_instruction)
+        
         try:
             # Create generation config for JSON output
             generation_config = genai.types.GenerationConfig(

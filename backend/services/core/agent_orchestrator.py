@@ -1,4 +1,5 @@
 """Agent orchestrator - Coordinates agent execution flow."""
+import json
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy import select, func
@@ -667,8 +668,9 @@ class AgentOrchestrator:
             db: Database session
             progress_callback: Optional callback for progress updates
         """
-        if campaign.status != CampaignStatus.IN_PROGRESS:
-            raise ValueError("Campaign must be in progress to analyze outcome.")
+        # Allow both IN_PROGRESS and GENERATING_REPORT status
+        if campaign.status not in [CampaignStatus.IN_PROGRESS, CampaignStatus.GENERATING_REPORT]:
+            raise ValueError(f"Campaign must be in progress or generating report to analyze outcome. Current status: {campaign.status}")
         
         if progress_callback:
             progress_callback(50, "Analyzing campaign outcomes...")
@@ -679,8 +681,8 @@ class AgentOrchestrator:
             for day, execution in campaign.daily_execution.items()
         }
         
-        # Extract goal from onboarding_data
-        goal_dict = campaign.onboarding_data.get("goal", {}) if campaign.onboarding_data else {}
+        # Extract goal from onboarding_data (Pydantic model)
+        goal_dict = campaign.onboarding_data.goal.model_dump() if campaign.onboarding_data and campaign.onboarding_data.goal else {}
         
         outcome = self.outcome_agent.analyze_outcome(
             goal_dict,
@@ -724,26 +726,34 @@ class AgentOrchestrator:
         profile = result.scalar_one_or_none()
         niche = profile.niche if profile else "Unknown"
         
-        # Determine primary platform
-        platforms = campaign.onboarding_data.get("goal", {}).get("platforms", [])
+        # Determine primary platform (Pydantic model)
+        platforms = campaign.onboarding_data.goal.platforms if campaign.onboarding_data.goal else []
         platform = platforms[0] if platforms else "Unknown"
         
-        goal_data = campaign.onboarding_data.get("goal", {})
+        goal = campaign.onboarding_data.goal if campaign.onboarding_data else None
+        
+        # Convert goal_vs_result dict to string (it's a dict in OutcomeAgentOutput)
+        goal_summary = ""
+        if outcome.goal_vs_result:
+            if isinstance(outcome.goal_vs_result, dict):
+                goal_summary = json.dumps(outcome.goal_vs_result)
+            else:
+                goal_summary = str(outcome.goal_vs_result)
         
         # Create learning memory in database
         learning_db = LearningMemoryDB(
             memory_id=str(uuid.uuid4()),
             user_id=campaign.user_id,
             campaign_id=campaign.campaign_id,
-            goal_type=goal_data.get("goal_type", "growth"),
+            goal_type=goal.goal_type if goal else "growth",
             platform=platform,
             niche=niche,
-            campaign_duration_days=goal_data.get("duration_days", 3),
-            posting_frequency=goal_data.get("intensity", "moderate"),
+            campaign_duration_days=goal.duration_days if goal else 3,
+            posting_frequency=goal.intensity if goal else "moderate",
             what_worked=outcome.what_worked or [],
             what_failed=outcome.what_failed or [],
             recommendations=outcome.next_campaign_suggestions or [],
-            goal_achievement_summary=outcome.goal_vs_result or ""
+            goal_achievement_summary=goal_summary
         )
         
         db.add(learning_db)

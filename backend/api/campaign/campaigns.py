@@ -68,7 +68,7 @@ async def _campaign_db_to_pydantic(db: AsyncSession, campaign_db: CampaignDB) ->
     daily_execution = await _load_daily_execution(db, campaign_db.campaign_id)
     
     # Parse onboarding_data from dict to Pydantic if present
-    from ..models.campaign.campaign import CampaignOnboarding
+    from ...models.campaign.campaign import CampaignOnboarding
     onboarding_data = None
     if campaign_db.onboarding_data:
         try:

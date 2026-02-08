@@ -140,7 +140,7 @@ class Campaign(BaseModel):
     # Planning Phase Outputs
     strategy_output: dict = Field(default_factory=dict)
     forensics_output: dict = Field(default_factory=dict, description="Combined all platforms")
-    campaign_plan: Optional[CampaignPlan] = None
+    campaign_plan: Optional[CampaignPlan | dict] = None  # Allow dict for error cases
     plan_approved: bool = Field(default=False, description="User approved the generated plan")
     content_warnings: Optional[dict] = None
     

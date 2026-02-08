@@ -209,6 +209,9 @@ def analyze_campaign_outcome_task(self, campaign_id: str, actual_metrics: dict):
                 }
                 
             except Exception as e:
+                # Rollback the session first to clear any pending transaction state
+                await db.rollback()
+                
                 # Mark campaign as failed
                 result = await db.execute(
                     select(CampaignDB).where(CampaignDB.campaign_id == campaign_id)
