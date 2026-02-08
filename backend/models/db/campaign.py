@@ -2,7 +2,7 @@
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, ForeignKey, CheckConstraint, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from database.base import Base
+from ...database.base import Base
 
 
 class CampaignDB(Base):
@@ -19,7 +19,8 @@ class CampaignDB(Base):
     
     # ===== Onboarding Data =====
     onboarding_data = Column(JSONB, nullable=True, comment="CampaignOnboarding model (name, description, goal, competitors, agent_config)")
-    status = Column(String(50), nullable=False, default="onboarding_incomplete", comment="Enum: onboarding_incomplete, ready_to_start, in_progress, completed, failed, archived_plan_expired")
+    status = Column(String(50), nullable=False, default="onboarding_incomplete", comment="Enum: onboarding_incomplete, ready_to_start, processing, in_progress, generating_report, completed, processing_failed, failed, archived_plan_expired")
+    task_id = Column(String(255), nullable=True, index=True, comment="Celery task ID for async operations")
     
     # ===== Archive Tracking =====
     archived_at = Column(DateTime(timezone=True), nullable=True, comment="When campaign was archived")

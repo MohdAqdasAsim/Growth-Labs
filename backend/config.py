@@ -71,3 +71,8 @@ DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 # Database Echo (for development)
 DB_ECHO: bool = os.getenv("DB_ECHO", "False").lower() == "true"
 
+# Celery / Redis Configuration
+REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+CELERY_BROKER_URL: str = REDIS_URL
+CELERY_RESULT_BACKEND: str = REDIS_URL
+

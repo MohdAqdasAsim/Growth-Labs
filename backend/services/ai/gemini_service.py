@@ -199,8 +199,8 @@ class GeminiService:
         phase2_parts = []
         if creator_data.get('unique_angle'):
             phase2_parts.append(f"\nUNIQUE ANGLE: {creator_data['unique_angle']}")
-        if creator_data.get('content_mission'):
-            phase2_parts.append(f"\nCONTENT MISSION: {creator_data['content_mission']}")
+        if creator_data.get('content_purpose'):
+            phase2_parts.append(f"\nCONTENT PURPOSE: {creator_data['content_purpose']}")
         
         if creator_data.get('self_strengths'):
             phase2_parts.append(f"\n\nSELF-IDENTIFIED STRENGTHS: {creator_data['self_strengths']}")
@@ -217,8 +217,8 @@ class GeminiService:
         if creator_data.get('audience_demographics'):
             phase2_parts.append(f"\nAUDIENCE DEMOGRAPHICS: {creator_data['audience_demographics']}")
         
-        if creator_data.get('tools_skills'):
-            phase2_parts.append(f"\n\nTOOLS/SKILLS: {creator_data['tools_skills']}")
+        if creator_data.get('tech_proficiency'):
+            phase2_parts.append(f"\n\nTECH PROFICIENCY: {creator_data['tech_proficiency']}")
         if creator_data.get('budget'):
             phase2_parts.append(f"\nBUDGET: {creator_data['budget']}")
         if creator_data.get('team_size'):

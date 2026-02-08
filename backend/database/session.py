@@ -1,7 +1,7 @@
 """SQLAlchemy async session factory and dependency injection."""
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from database.base import engine
+from .base import engine
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(

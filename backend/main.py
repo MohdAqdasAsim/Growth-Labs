@@ -8,6 +8,7 @@ from .config import ALLOWED_ORIGINS
 from .api.auth import auth
 from .api.user import onboarding, profile
 from .api.campaign import campaigns, content
+from .api import tasks
 
 app = FastAPI(
     title="Goal-Driven Agentic Campaign System",
@@ -30,6 +31,7 @@ app.include_router(onboarding.router)
 app.include_router(profile.router)
 app.include_router(campaigns.router)
 app.include_router(content.router)
+app.include_router(tasks.router)
 
 
 @app.exception_handler(Exception)

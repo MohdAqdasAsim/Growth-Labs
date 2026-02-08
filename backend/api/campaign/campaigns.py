@@ -12,6 +12,11 @@ from ...models.db.user import CreatorProfileDB
 from ...api.auth.auth import get_current_user_id
 from ...database.session import get_db
 from ...services.core.agent_orchestrator import AgentOrchestrator
+from ...tasks.campaign_tasks import (
+    run_campaign_workflow_task,
+    analyze_campaign_outcome_task,
+    analyze_previous_campaigns_task
+)
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 orchestrator = AgentOrchestrator()
@@ -62,10 +67,20 @@ async def _campaign_db_to_pydantic(db: AsyncSession, campaign_db: CampaignDB) ->
     daily_content = await _load_daily_content(db, campaign_db.campaign_id)
     daily_execution = await _load_daily_execution(db, campaign_db.campaign_id)
     
+    # Parse onboarding_data from dict to Pydantic if present
+    from ..models.campaign.campaign import CampaignOnboarding
+    onboarding_data = None
+    if campaign_db.onboarding_data:
+        try:
+            onboarding_data = CampaignOnboarding(**campaign_db.onboarding_data)
+        except Exception:
+            # If parsing fails, keep as dict (will be stored as Any/dict in Campaign)
+            onboarding_data = campaign_db.onboarding_data
+    
     return Campaign(
         campaign_id=campaign_db.campaign_id,
         user_id=campaign_db.user_id,
-        onboarding_data=campaign_db.onboarding_data,
+        onboarding_data=onboarding_data,
         status=CampaignStatus(campaign_db.status),
         profile_snapshot=campaign_db.profile_snapshot or {},
         archived_at=campaign_db.archived_at,
@@ -254,23 +269,32 @@ async def complete_campaign_onboarding(
     )
     total_campaigns = result.scalar() or 0
     
-    if total_campaigns > 0:
-        # Agent Orchestrator will fill detailed insights
-        detailed_insights = await orchestrator.analyze_previous_campaigns(user_id, db)
-        campaign_db.learning_insights = detailed_insights
-    
+    # Update status immediately
     campaign_db.status = "ready_to_start"
     campaign_db.onboarding_completed_at = datetime.utcnow()
     campaign_db.updated_at = datetime.utcnow()
     await db.commit()
-    await db.refresh(campaign_db)
     
-    return {
-        "message": "Campaign onboarding complete. Ready to start!",
-        "campaign_id": campaign_id,
-        "status": campaign_db.status,
-        "learning_from_previous": campaign_db.learning_insights
-    }
+    # If previous campaigns exist, analyze asynchronously
+    if total_campaigns > 0:
+        task = analyze_previous_campaigns_task.delay(user_id, campaign_id)
+        campaign_db.task_id = task.id
+        await db.commit()
+        
+        return {
+            "message": "Campaign ready. Analyzing past campaigns...",
+            "campaign_id": campaign_id,
+            "status": "ready_to_start",
+            "task_id": task.id,
+            "status_url": f"/tasks/{task.id}"
+        }
+    else:
+        return {
+            "message": "Campaign onboarding complete. Ready to start!",
+            "campaign_id": campaign_id,
+            "status": "ready_to_start",
+            "task_id": None
+        }
 
 
 @router.get("/{campaign_id}/lessons-learned")
@@ -337,8 +361,10 @@ async def start_campaign(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Manual start - executes agent workflow.
-    Status: READY_TO_START → IN_PROGRESS
+    Start campaign - executes agent workflow asynchronously.
+    Status: READY_TO_START → PROCESSING → IN_PROGRESS
+    
+    Returns task_id for polling progress via GET /tasks/{task_id}
     """
     result = await db.execute(select(CampaignDB).where(CampaignDB.campaign_id == campaign_id))
     campaign_db = result.scalar_one_or_none()
@@ -349,29 +375,33 @@ async def start_campaign(
     if campaign_db.user_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    if campaign_db.status != "ready_to_start":
-        raise HTTPException(status_code=400, detail=f"Campaign not ready to start. Current status: {campaign_db.status}")
+    if campaign_db.status not in ["ready_to_start", "processing_failed"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Campaign not ready to start. Current status: {campaign_db.status}"
+        )
     
-    # Update status
-    campaign_db.status = "in_progress"
+    # Update status to processing
+    campaign_db.status = "processing"
     campaign_db.started_at = datetime.utcnow()
+    campaign_db.task_id = None  # Clear old task_id if retrying
     campaign_db.updated_at = datetime.utcnow()
     await db.commit()
     
-    # Execute agent workflow
-    try:
-        await orchestrator.run_campaign_workflow(campaign_id, db)
-        
-        return {
-            "message": "Campaign started successfully",
-            "campaign_id": campaign_id,
-            "status": campaign_db.status
-        }
-    except Exception as e:
-        # Mark as failed
-        campaign_db.status = "failed"
-        await db.commit()
-        raise HTTPException(status_code=500, detail=f"Campaign execution failed: {str(e)}")
+    # Enqueue Celery task
+    task = run_campaign_workflow_task.delay(campaign_id)
+    
+    # Save task_id
+    campaign_db.task_id = task.id
+    await db.commit()
+    
+    return {
+        "message": "Campaign workflow started",
+        "campaign_id": campaign_id,
+        "task_id": task.id,
+        "status_url": f"/tasks/{task.id}",
+        "poll_interval_seconds": 2
+    }
 
 
 @router.patch("/{campaign_id}")
@@ -462,10 +492,10 @@ async def complete_campaign(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Mark campaign as complete and generate outcome report.
+    Mark campaign as complete and generate outcome report asynchronously.
+    Status: IN_PROGRESS → GENERATING_REPORT → COMPLETED
     
-    This executes:
-    - Outcome Agent (1 call)
+    Returns task_id for polling progress via GET /tasks/{task_id}
     """
     result = await db.execute(select(CampaignDB).where(CampaignDB.campaign_id == campaign_id))
     campaign_db = result.scalar_one_or_none()
@@ -482,31 +512,32 @@ async def complete_campaign(
             detail="Access denied"
         )
     
-    if campaign_db.status != "in_progress":
+    if campaign_db.status not in ["in_progress", "processing_failed"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Campaign must be in progress. Current status: {campaign_db.status}"
         )
     
-    try:
-        # Convert to Pydantic for orchestrator
-        campaign = await _campaign_db_to_pydantic(db, campaign_db)
-        campaign = await orchestrator.analyze_campaign_outcome(campaign, actual_metrics, db)
-        
-        # Update database with outcome
-        campaign_db.outcome_report = campaign.outcome_report.model_dump() if campaign.outcome_report else None
-        campaign_db.status = "completed"
-        campaign_db.completed_at = datetime.utcnow()
-        campaign_db.updated_at = datetime.utcnow()
-        await db.commit()
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Outcome analysis failed: {str(e)}"
-        )
+    # Update status to generating_report
+    campaign_db.status = "generating_report"
+    campaign_db.task_id = None  # Clear old task_id
+    campaign_db.updated_at = datetime.utcnow()
+    await db.commit()
     
-    return campaign_db.outcome_report
+    # Enqueue Celery task
+    task = analyze_campaign_outcome_task.delay(campaign_id, actual_metrics)
+    
+    # Save task_id
+    campaign_db.task_id = task.id
+    await db.commit()
+    
+    return {
+        "message": "Generating outcome report",
+        "campaign_id": campaign_id,
+        "task_id": task.id,
+        "status_url": f"/tasks/{task.id}",
+        "poll_interval_seconds": 2
+    }
 
 
 @router.patch("/{campaign_id}/day/{day_number}/confirm")

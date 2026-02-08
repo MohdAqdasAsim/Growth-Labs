@@ -33,10 +33,10 @@ class ContextAnalyzer:
                 - competitor_urls, best_content, worst_content
                 
                 Phase 2 (Optional):
-                - unique_angle, content_mission
+                - unique_angle, content_purpose
                 - self_strengths, self_weaknesses, content_enjoys, content_avoids
                 - current_metrics, audience_demographics
-                - tools_skills, budget, team_size
+                - tech_proficiency, budget, team_size
                 - past_attempts, what_worked_before
                 - why_create, timeline_expectations
         
