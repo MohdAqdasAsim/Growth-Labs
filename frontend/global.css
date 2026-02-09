@@ -1,8 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playwrite+AU+QLD:wght@100..400&family=Sigmar+One&family=Arizonia&family=Climate+Crisis&family=Titan+One&family=Alfa+Slab+One&family=DM+Serif+Text:ital@0;1&family=Fugaz+One&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Russo+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=BBH+Hegarty&family=Luckiest+Guy&family=Young+Serif&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 @import "tailwindcss";
 
 :root {
-  --color-background: #09090b;
+  --color-background: #181819;
   --color-card: #18181b;
   --color-secondary: #27272a;
   --color-border-default: #3f3f46;
@@ -92,8 +94,21 @@
   --color-text-secondary: var(--color-text-secondary);
   --color-text-muted: var(--color-text-muted);
 
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-serif: 'Instrument Serif', serif;
+  --font-playwrite: "Playwrite AU QLD", sans-serif;
+  --font-sigmar: "Sigmar One", sans-serif;
+  --font-arizonia: "Arizonia", cursive;
+  --font-climate-crisis: "Climate Crisis", sans-serif;
+  --font-titan-one: "Titan One", sans-serif;
+  --font-alfa: "Alfa Slab One", serif;
+  --font-dmserif: "DM Serif Text", serif;
+  --font-fugaz: "Fugaz One", cursive;
+  --font-inter: "Inter", sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
+  --font-russo: "Russo One", sans-serif;
+  --font-bbh: "BBH Hegarty", sans-serif;
+  --font-luckiest: "Luckiest Guy", cursive;
+  --font-young-serif: "Young Serif", serif;
+  --font-plus-jakarta: "Plus Jakarta Sans", sans-serif;
 }
 
 @layer base {
