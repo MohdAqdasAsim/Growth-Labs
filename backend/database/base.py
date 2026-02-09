@@ -1,7 +1,7 @@
 """SQLAlchemy declarative base and engine configuration."""
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import declarative_base
-from config import DATABASE_URL, DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_TIMEOUT, DB_ECHO
+from ..config import DATABASE_URL, DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_TIMEOUT, DB_ECHO
 
 # Create async engine with connection pooling
 engine = create_async_engine(

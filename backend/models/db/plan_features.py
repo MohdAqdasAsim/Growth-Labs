@@ -1,7 +1,7 @@
 """SQLAlchemy model for plan features and quotas."""
 from sqlalchemy import Column, String, Integer, Boolean, DateTime
 from sqlalchemy.sql import func
-from database.base import Base
+from ...database.base import Base
 
 
 class PlanFeatureDB(Base):

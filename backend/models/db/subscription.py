@@ -1,7 +1,7 @@
 """SQLAlchemy models for subscriptions and usage metrics."""
 from sqlalchemy import Column, String, Integer, Date, DateTime, Boolean, ForeignKey
 from sqlalchemy.sql import func
-from database.base import Base
+from ...database.base import Base
 
 
 class SubscriptionDB(Base):

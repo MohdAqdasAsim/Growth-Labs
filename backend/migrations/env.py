@@ -9,15 +9,19 @@ from alembic import context
 # Import config to get DATABASE_URL
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import DATABASE_URL
+# Add parent directory to path so we can import as 'backend.config'
+backend_path = str(Path(__file__).parent.parent.parent)
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
+
+from backend.config import DATABASE_URL
 
 # Import Base and all models for autogenerate support
-from database.base import Base
-from models.db.user import UserDB, CreatorProfileDB
-from models.db.subscription import SubscriptionDB, UsageMetricDB
-from models.db.campaign import CampaignDB, DailyContentDB, DailyExecutionDB, LearningMemoryDB
+from backend.database.base import Base
+from backend.models.db.user import UserDB, CreatorProfileDB
+from backend.models.db.subscription import SubscriptionDB, UsageMetricDB
+from backend.models.db.campaign import CampaignDB, DailyContentDB, DailyExecutionDB, LearningMemoryDB
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

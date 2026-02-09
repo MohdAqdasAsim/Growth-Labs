@@ -9,9 +9,12 @@ class CampaignStatus(str, Enum):
     """Campaign status enum."""
     ONBOARDING_INCOMPLETE = "onboarding_incomplete"  # During campaign setup
     READY_TO_START = "ready_to_start"                # Onboarding done, awaiting manual start
-    IN_PROGRESS = "in_progress"                      # Agents executing or content being posted
+    PROCESSING = "processing"                        # Agents running (async task)
+    IN_PROGRESS = "in_progress"                      # Agents complete, content being posted
+    GENERATING_REPORT = "generating_report"          # Outcome agent running (async task)
     COMPLETED = "completed"                          # All days executed, report generated
-    FAILED = "failed"                                # Agent execution failed
+    PROCESSING_FAILED = "processing_failed"          # Agent execution failed (can retry)
+    FAILED = "failed"                                # Permanent failure
 
 
 # Campaign-specific competitor data
@@ -137,7 +140,7 @@ class Campaign(BaseModel):
     # Planning Phase Outputs
     strategy_output: dict = Field(default_factory=dict)
     forensics_output: dict = Field(default_factory=dict, description="Combined all platforms")
-    campaign_plan: Optional[CampaignPlan] = None
+    campaign_plan: Optional[CampaignPlan | dict] = None  # Allow dict for error cases
     plan_approved: bool = Field(default=False, description="User approved the generated plan")
     content_warnings: Optional[dict] = None
     

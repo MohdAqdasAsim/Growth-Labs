@@ -5,7 +5,7 @@ from typing import Optional, Dict
 from datetime import datetime, timedelta
 from functools import lru_cache
 
-from ..config import CLERK_SECRET_KEY, CLERK_JWKS_URL
+from ...config import CLERK_SECRET_KEY, CLERK_JWKS_URL
 
 
 class ClerkService:

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Annotated, Optional
 import uuid
+import os
 from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +30,11 @@ async def get_current_user_id(
     
     Verifies Clerk session token and returns internal user_id.
     """
+    # ⚠️ TEMPORARY BYPASS FOR TESTING - Remove in production ⚠️
+    BYPASS_AUTH = os.getenv("BYPASS_AUTH", "false").lower() == "true"
+    if BYPASS_AUTH:
+        return "test-user-123"  # Must exist in database
+    
     token = credentials.credentials
     
     # Verify Clerk JWT token

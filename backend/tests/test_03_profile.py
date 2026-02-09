@@ -17,8 +17,8 @@ class TestProfile:
         assert response.status_code == 200
         data = response.json()
         assert data["unique_angle"] == phase2_profile_data["unique_angle"]
-        assert data["content_mission"] == phase2_profile_data["content_mission"]
-        assert data["tools_skills"] == phase2_profile_data["tools_skills"]
+        assert data["self_purpose"] == phase2_profile_data["self_purpose"]
+        assert data["self_strengths"] == phase2_profile_data["self_strengths"]
     
     def test_update_phase2_without_phase1(self, client, auth_headers, phase2_profile_data):
         """Test that Phase 2 update requires Phase 1 completion."""
@@ -35,7 +35,7 @@ class TestProfile:
         # Update only a few fields
         partial_data = {
             "unique_angle": "Teaching through real-world projects",
-            "tools_skills": ["Adobe Premiere", "Notion"]
+            "self_strengths": ["Adobe Premiere", "Notion"]
         }
         
         response = client.patch("/profile/phase2", json=partial_data, headers=auth_headers)
@@ -43,7 +43,7 @@ class TestProfile:
         assert response.status_code == 200
         data = response.json()
         assert data["unique_angle"] == partial_data["unique_angle"]
-        assert data["tools_skills"] == partial_data["tools_skills"]
+        assert data["self_strengths"] == partial_data["self_strengths"]
     
     def test_get_profile_after_phase2(self, client, auth_headers, phase1_profile_data, phase2_profile_data):
         """Test retrieving complete profile after Phase 2."""
@@ -63,7 +63,7 @@ class TestProfile:
         assert data["user_name"] == phase1_profile_data["user_name"]
         # Verify Phase 2 fields
         assert data["unique_angle"] == phase2_profile_data["unique_angle"]
-        assert data["content_mission"] == phase2_profile_data["content_mission"]
+        assert data["self_purpose"] == phase2_profile_data["self_purpose"]
     
     def test_profile_completion_percentage(self, client, auth_headers, phase1_profile_data, phase2_profile_data):
         """Test profile completion percentage calculation."""

@@ -2,7 +2,7 @@
 from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from database.base import Base
+from ...database.base import Base
 
 
 class UserDB(Base):
