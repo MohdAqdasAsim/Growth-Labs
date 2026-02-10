@@ -16,15 +16,16 @@ AsyncSessionLocal = async_sessionmaker(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides async database session.
-    
+
     Usage in endpoints:
         async def endpoint(db: AsyncSession = Depends(get_db)):
             result = await db.execute(select(User))
+            await db.commit()  # Endpoints manage their own commits
     """
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
+            # No auto-commit - let endpoints manage their own transactions
         except Exception:
             await session.rollback()
             raise

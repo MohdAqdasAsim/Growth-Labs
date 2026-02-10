@@ -13,9 +13,9 @@
   - Token decoding and validation
   - User info extraction from JWT payload
 
-- **Auth Routes** (`api/auth/auth.py`):
+- **Auth Routes** (`api/auth/auth.py` and `api/webhooks.py`):
   - `get_current_user_id()`: Verifies Clerk JWT, returns internal user_id
-  - `POST /auth/webhooks/clerk`: Webhook for user.created/updated/deleted
+  - `POST /api/webhooks`: Webhook for user.created/updated/deleted
   - `GET /auth/me`: Get current user profile
   - Removed old register/login endpoints (Clerk handles this)
 
@@ -70,7 +70,7 @@ CLERK_JWKS_URL: str = "https://clerk.accounts.dev/.well-known/jwks.json"
 ### 4. Configure Clerk Webhook
 In Clerk Dashboard → Webhooks:
 1. Click "Add Endpoint"
-2. URL: `https://your-backend-domain.com/auth/webhooks/clerk`
+2. URL: `https://your-backend-domain.com/api/webhooks`
 3. Subscribe to events:
    - ✅ `user.created`
    - ✅ `user.updated`

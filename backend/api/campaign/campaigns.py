@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated, Dict, Any, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -225,7 +225,7 @@ async def update_campaign_onboarding(
         onboarding["seo_optimization_enabled"] = onboarding_data["seo_optimization_enabled"]
     
     campaign_db.onboarding_data = onboarding
-    campaign_db.updated_at = datetime.utcnow()
+    campaign_db.updated_at = datetime.now(timezone.utc)
     await db.commit()
     
     return {
@@ -271,8 +271,8 @@ async def complete_campaign_onboarding(
     
     # Update status immediately
     campaign_db.status = "ready_to_start"
-    campaign_db.onboarding_completed_at = datetime.utcnow()
-    campaign_db.updated_at = datetime.utcnow()
+    campaign_db.onboarding_completed_at = datetime.now(timezone.utc)
+    campaign_db.updated_at = datetime.now(timezone.utc)
     await db.commit()
     
     # If previous campaigns exist, analyze asynchronously
@@ -345,7 +345,7 @@ async def approve_lessons(
     
     campaign_db.learning_insights = lessons
     campaign_db.learning_approved = True
-    campaign_db.updated_at = datetime.utcnow()
+    campaign_db.updated_at = datetime.now(timezone.utc)
     await db.commit()
     
     return {
@@ -383,9 +383,9 @@ async def start_campaign(
     
     # Update status to processing
     campaign_db.status = "processing"
-    campaign_db.started_at = datetime.utcnow()
+    campaign_db.started_at = datetime.now(timezone.utc)
     campaign_db.task_id = None  # Clear old task_id if retrying
-    campaign_db.updated_at = datetime.utcnow()
+    campaign_db.updated_at = datetime.now(timezone.utc)
     await db.commit()
     
     # Enqueue Celery task
@@ -521,7 +521,7 @@ async def complete_campaign(
     # Update status to generating_report
     campaign_db.status = "generating_report"
     campaign_db.task_id = None  # Clear old task_id
-    campaign_db.updated_at = datetime.utcnow()
+    campaign_db.updated_at = datetime.now(timezone.utc)
     await db.commit()
     
     # Enqueue Celery task
@@ -597,7 +597,7 @@ async def confirm_daily_execution(
         # Update existing
         execution_db.posted_to_youtube = execution_data.get("youtube_posted", False)
         execution_db.posted_to_twitter = execution_data.get("twitter_posted", False)
-        execution_db.executed_at = datetime.utcnow()
+        execution_db.executed_at = datetime.now(timezone.utc)
     else:
         # Create new
         execution_db = DailyExecutionDB(
@@ -607,7 +607,7 @@ async def confirm_daily_execution(
             platform="youtube",  # Default platform
             posted_to_youtube=execution_data.get("youtube_posted", False),
             posted_to_twitter=execution_data.get("twitter_posted", False),
-            executed_at=datetime.utcnow()
+            executed_at=datetime.now(timezone.utc)
         )
         db.add(execution_db)
     

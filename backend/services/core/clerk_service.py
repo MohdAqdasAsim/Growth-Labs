@@ -2,7 +2,7 @@
 import jwt
 import httpx
 from typing import Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 from ...config import CLERK_SECRET_KEY, CLERK_JWKS_URL
@@ -28,7 +28,7 @@ class ClerkService:
         """
         # Return cached JWKS if still valid
         if (self._jwks_cache and self._jwks_cache_time and 
-            datetime.now(datetime.timezone.utc) - self._jwks_cache_time < self._cache_ttl):
+            datetime.now(timezone.utc) - self._jwks_cache_time < self._cache_ttl):
             return self._jwks_cache
         
         # Fetch fresh JWKS
@@ -36,7 +36,7 @@ class ClerkService:
             response = await client.get(self.jwks_url, timeout=10.0)
             response.raise_for_status()
             self._jwks_cache = response.json()
-            self._jwks_cache_time = datetime.now(datetime.timezone.utc)
+            self._jwks_cache_time = datetime.now(timezone.utc)
             return self._jwks_cache
     
     async def verify_token(self, token: str) -> Optional[Dict]:

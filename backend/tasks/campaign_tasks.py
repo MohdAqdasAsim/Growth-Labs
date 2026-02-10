@@ -1,6 +1,6 @@
 """Celery tasks for campaign workflow execution."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select
 from celery import Task
 from ..celery_app import celery_app, get_async_session
@@ -86,7 +86,7 @@ def run_campaign_workflow_task(self, campaign_id: str):
                 # Update campaign status to in_progress and clear task_id
                 campaign_db.status = "in_progress"
                 campaign_db.task_id = None
-                campaign_db.updated_at = datetime.utcnow()
+                campaign_db.updated_at = datetime.now(timezone.utc)
                 await db.commit()
                 
                 self.update_progress(100, "Campaign workflow complete")
@@ -107,7 +107,7 @@ def run_campaign_workflow_task(self, campaign_id: str):
                 if campaign_db:
                     campaign_db.status = "processing_failed"
                     campaign_db.task_id = None
-                    campaign_db.updated_at = datetime.utcnow()
+                    campaign_db.updated_at = datetime.now(timezone.utc)
                     # Store error in campaign_plan as temporary location
                     if not campaign_db.campaign_plan:
                         campaign_db.campaign_plan = {}
@@ -195,9 +195,9 @@ def analyze_campaign_outcome_task(self, campaign_id: str, actual_metrics: dict):
                 # Update database with outcome
                 campaign_db.outcome_report = campaign.outcome_report.model_dump() if campaign.outcome_report else None
                 campaign_db.status = "completed"
-                campaign_db.completed_at = datetime.utcnow()
+                campaign_db.completed_at = datetime.now(timezone.utc)
                 campaign_db.task_id = None
-                campaign_db.updated_at = datetime.utcnow()
+                campaign_db.updated_at = datetime.now(timezone.utc)
                 await db.commit()
                 
                 self.update_progress(100, "Outcome report complete")
@@ -221,7 +221,7 @@ def analyze_campaign_outcome_task(self, campaign_id: str, actual_metrics: dict):
                 if campaign_db:
                     campaign_db.status = "processing_failed"
                     campaign_db.task_id = None
-                    campaign_db.updated_at = datetime.utcnow()
+                    campaign_db.updated_at = datetime.now(timezone.utc)
                     await db.commit()
                 
                 raise
@@ -284,7 +284,7 @@ def analyze_previous_campaigns_task(self, user_id: str, campaign_id: str):
                 # Update campaign with insights
                 campaign_db.learning_insights = insights
                 campaign_db.task_id = None
-                campaign_db.updated_at = datetime.utcnow()
+                campaign_db.updated_at = datetime.now(timezone.utc)
                 await db.commit()
                 
                 self.update_progress(100, "Analysis complete")
@@ -304,7 +304,7 @@ def analyze_previous_campaigns_task(self, user_id: str, campaign_id: str):
                 
                 if campaign_db:
                     campaign_db.task_id = None
-                    campaign_db.updated_at = datetime.utcnow()
+                    campaign_db.updated_at = datetime.now(timezone.utc)
                     await db.commit()
                 
                 # Don't retry for this task - not critical

@@ -3,7 +3,7 @@ import asyncio
 import uuid
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 # Add backend to path
@@ -42,8 +42,8 @@ async def create_test_user():
             user_id=test_user_id,
             email="testuser@superenginelab.com",
             clerk_user_id="test_clerk_bypass_123",
-            created_at=datetime.utcnow(),
-            last_login_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            last_login_at=datetime.now(timezone.utc)
         )
         session.add(user)
         await session.flush()  # Flush user first before adding related records
@@ -63,8 +63,8 @@ async def create_test_user():
             target_platforms=["youtube", "twitter", "instagram"],
             self_topics=["AI", "Automation", "Testing"],
             phase2_completed=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         session.add(profile)
         print(f"✅ Created CreatorProfileDB")
@@ -78,8 +78,8 @@ async def create_test_user():
             billing_cycle="monthly",
             auto_renew_enabled=True,
             cancellation_scheduled=False,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         session.add(subscription)
         print(f"✅ Created SubscriptionDB: free plan, active")
@@ -92,9 +92,9 @@ async def create_test_user():
             image_credits_base=10,
             image_credits_topup=0,
             image_credits_used_this_month=0,
-            last_reset_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            last_reset_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         session.add(usage)
         print(f"✅ Created UsageMetricDB: 0/3 campaigns, 10 image credits")

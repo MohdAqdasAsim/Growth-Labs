@@ -12,7 +12,7 @@ from models.db.subscription import SubscriptionDB, UsageMetricDB
 from models.db.plan_features import PlanFeatureDB
 from models.db.campaign import CampaignDB
 from sqlalchemy import select, text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 async def test_database():
@@ -110,8 +110,8 @@ async def test_database():
             user_id=test_user.user_id,
             plan_tier="free",
             status="active",
-            current_period_start=datetime.utcnow().date(),
-            current_period_end=(datetime.utcnow() + timedelta(days=30)).date(),
+            current_period_start=datetime.now(timezone.utc).date(),
+            current_period_end=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
             auto_renew_enabled=False
         )
         session.add(test_subscription)
@@ -130,7 +130,7 @@ async def test_database():
             image_credits_base=0,  # Free tier gets 0
             image_credits_topup=0,
             image_credits_used_this_month=0,
-            last_reset_at=datetime.utcnow()
+            last_reset_at=datetime.now(timezone.utc)
         )
         session.add(test_usage)
         await session.commit()

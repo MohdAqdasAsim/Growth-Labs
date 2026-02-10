@@ -1,4 +1,3 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
@@ -12,11 +11,20 @@ if (!PUBLISHABLE_KEY) {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-        <App />
-      </ClerkProvider>
-    </BrowserRouter>
-  </StrictMode>,
+  <BrowserRouter>
+    <ClerkProvider
+      publishableKey={PUBLISHABLE_KEY}
+      signInUrl="/signin"
+      signUpUrl="/signup"
+      afterSignOutUrl="/signin"
+      appearance={{
+        layout: {
+          socialButtonsPlacement: 'top',
+          shimmer: true,
+        },
+      }}
+    >
+      <App />
+    </ClerkProvider>
+  </BrowserRouter>,
 );

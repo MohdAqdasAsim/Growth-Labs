@@ -1,7 +1,7 @@
 """Profile API routes for Phase 2 completion."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -171,7 +171,7 @@ async def update_phase2(
     if all(field for field in phase2_fields):
         profile_db.phase2_completed = True
     
-    profile_db.updated_at = datetime.utcnow()
+    profile_db.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(profile_db)
     
@@ -199,7 +199,7 @@ async def update_phase2(
         
         agent_context = profile_db.agent_context or {}
         agent_context["_analyzed_context"] = context_output.model_dump()
-        agent_context["_context_analyzed_at"] = datetime.utcnow().isoformat()
+        agent_context["_context_analyzed_at"] = datetime.now(timezone.utc).isoformat()
         
         profile_db.agent_context = agent_context
         profile_db.recommended_frequency = context_output.strategic_insights.get(

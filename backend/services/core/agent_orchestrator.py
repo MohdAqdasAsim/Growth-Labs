@@ -1,7 +1,7 @@
 """Agent orchestrator - Coordinates agent execution flow."""
 import json
 from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -374,7 +374,7 @@ class AgentOrchestrator:
                     continue
             
             # Save campaign updates
-            campaign_db.updated_at = datetime.utcnow()
+            campaign_db.updated_at = datetime.now(timezone.utc)
             await db.commit()
             
             # Count generated content
@@ -545,7 +545,7 @@ class AgentOrchestrator:
         # 4. Auto-approve and generate content (no approval gate)
         campaign.plan_approved = True
         campaign.status = CampaignStatus.IN_PROGRESS
-        campaign.start_date = datetime.utcnow()
+        campaign.start_date = datetime.now(timezone.utc)
         duration_days = campaign.goal.duration_days if hasattr(campaign.goal, 'duration_days') else 3
         campaign.end_date = campaign.start_date + timedelta(days=duration_days)
         
@@ -602,7 +602,7 @@ class AgentOrchestrator:
             raise ValueError("Campaign plan not approved by user.")
         
         campaign.status = CampaignStatus.APPROVED
-        campaign.start_date = datetime.utcnow()
+        campaign.start_date = datetime.now(timezone.utc)
         # Use duration_days from campaign goal
         duration_days = campaign.goal.duration_days if hasattr(campaign.goal, 'duration_days') else 3
         campaign.end_date = campaign.start_date + timedelta(days=duration_days)

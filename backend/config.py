@@ -16,8 +16,19 @@ JWT_EXPIRATION_HOURS: int = 24
 # Clerk Authentication
 CLERK_SECRET_KEY: str = os.getenv("CLERK_SECRET_KEY", "")  # From Clerk Dashboard → API Keys
 CLERK_PUBLISHABLE_KEY: str = os.getenv("CLERK_PUBLISHABLE_KEY", "")  # For frontend (FYI only)
-CLERK_WEBHOOK_SECRET: str = os.getenv("CLERK_WEBHOOK_SECRET", "")  # From Clerk Dashboard → Webhooks
-CLERK_JWKS_URL: str = "https://clerk.YOUR_DOMAIN.com/.well-known/jwks.json"  # Will update with actual domain
+CLERK_WEBHOOK_SECRET: str = os.getenv("CLERK_WEBHOOK_SECRET")  # From Clerk Dashboard → Webhooks
+if not CLERK_WEBHOOK_SECRET:
+    raise ValueError(
+        "CLERK_WEBHOOK_SECRET environment variable is required. "
+        "Get it from Clerk Dashboard → Webhooks → [Your Endpoint] → Signing Secret"
+    )
+CLERK_JWKS_URL: str = os.getenv(
+    "CLERK_JWKS_URL",
+    # Default to the current development Clerk instance; override in .env for other envs.
+    "https://sterling-haddock-23.clerk.accounts.dev/.well-known/jwks.json",
+)
+
+
 
 # YouTube Data API v3 Configuration
 YOUTUBE_API_KEY: Optional[str] = os.getenv("YOUTUBE_API_KEY")

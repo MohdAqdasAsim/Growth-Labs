@@ -9,6 +9,7 @@ from .api.auth import auth
 from .api.user import onboarding, profile
 from .api.campaign import campaigns, content
 from .api import tasks
+from .api import webhooks
 
 app = FastAPI(
     title="Goal-Driven Agentic Campaign System",
@@ -27,6 +28,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router)
+app.include_router(webhooks.router)
 app.include_router(onboarding.router)
 app.include_router(profile.router)
 app.include_router(campaigns.router)

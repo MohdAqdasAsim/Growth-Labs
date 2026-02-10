@@ -1,9 +1,10 @@
-import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   SignedIn,
   SignedOut,
   RedirectToSignIn,
   useUser,
+  useClerk,
 } from "@clerk/clerk-react";
 import {
   Landing,
@@ -73,14 +74,37 @@ function PrivatLayout() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
+  const navigate = useNavigate();
+
+  // Handle loading state
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#10B981]"></div>
+      </div>
+    );
+  }
+
+  // Not signed in - redirect to signin
+  if (!user) {
+    return <Navigate to="/signin" replace />;
+  }
+
+  // Check if user was deleted (Clerk sets deletedAt timestamp)
+  if (user.deletedSelfAt || (user as any).deletedAt) {
+    signOut().then(() => {
+      navigate("/signin", { replace: true });
+    });
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-white">Account not found. Redirecting to sign in...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }
 
 function OnboardingCheck({ children }: { children: React.ReactNode }) {
@@ -115,7 +139,7 @@ function App() {
 
       <Route element={<AuthLayout />}>
         <Route
-          path="/signin"
+          path="/signin/*"
           element={
             <>
               <SignedIn>
@@ -128,7 +152,7 @@ function App() {
           }
         />
         <Route
-          path="/signup"
+          path="/signup/*"
           element={
             <>
               <SignedIn>

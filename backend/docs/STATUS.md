@@ -139,7 +139,7 @@
 ## API Endpoints Status
 
 ### ✅ Auth Endpoints (Clerk Integration)
-- `POST /auth/webhooks/clerk` - User sync webhook
+- `POST /api/webhooks` - User sync webhook
 - Dependency: `get_current_user_id()` - JWT verification
 
 ### ✅ Onboarding Endpoints

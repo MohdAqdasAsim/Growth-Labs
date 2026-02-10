@@ -1,6 +1,6 @@
 """In-memory data storage implementation."""
 from typing import Optional, Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from ..models.user import User, CreatorProfile
@@ -48,7 +48,7 @@ class MemoryStore:
     # Creator profile operations
     def create_or_update_profile(self, profile: CreatorProfile) -> CreatorProfile:
         """Create or update creator profile."""
-        profile.updated_at = datetime.utcnow()
+        profile.updated_at = datetime.now(timezone.utc)
         self.creator_profiles[profile.user_id] = profile
         return profile
     
@@ -73,7 +73,7 @@ class MemoryStore:
     
     def update_campaign(self, campaign: Campaign) -> Campaign:
         """Update an existing campaign."""
-        campaign.updated_at = datetime.utcnow()
+        campaign.updated_at = datetime.now(timezone.utc)
         self.campaigns[campaign.campaign_id] = campaign
         return campaign
     

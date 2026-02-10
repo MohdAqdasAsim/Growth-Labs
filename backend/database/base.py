@@ -9,6 +9,8 @@ engine = create_async_engine(
     pool_size=DB_POOL_SIZE,
     max_overflow=DB_MAX_OVERFLOW,
     pool_timeout=DB_POOL_TIMEOUT,
+    pool_pre_ping=True,  # Test connections before using them
+    pool_recycle=3600,  # Recycle connections after 1 hour
     echo=DB_ECHO,
     future=True,
 )

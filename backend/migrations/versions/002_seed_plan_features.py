@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table, column
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # revision identifiers, used by Alembic.
@@ -48,7 +48,7 @@ def upgrade() -> None:
         column('updated_at', sa.DateTime),
     )
     
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     # Insert Free tier (Starter plan)
     op.bulk_insert(plan_features, [

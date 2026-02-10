@@ -1,7 +1,7 @@
 """Onboarding API routes."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,7 +51,7 @@ async def create_creator_profile(
         existing_profile.creator_type = request.creator_type
         existing_profile.niche = request.niche
         existing_profile.target_audience_niche = request.target_audience_niche
-        existing_profile.updated_at = datetime.utcnow()
+        existing_profile.updated_at = datetime.now(timezone.utc)
         profile_db = existing_profile
     else:
         # Create new profile
@@ -86,7 +86,7 @@ async def create_creator_profile(
         # Update profile with analyzed data
         agent_context = profile_db.agent_context or {}
         agent_context["_analyzed_context"] = context_output.model_dump()
-        agent_context["_context_analyzed_at"] = datetime.utcnow().isoformat()
+        agent_context["_context_analyzed_at"] = datetime.now(timezone.utc).isoformat()
         
         profile_db.agent_context = agent_context
         profile_db.recommended_frequency = context_output.strategic_insights.get(
