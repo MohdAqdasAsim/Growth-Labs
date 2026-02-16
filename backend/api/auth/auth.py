@@ -69,9 +69,12 @@ async def get_current_user_id(
 
         email = user_info.get("email")
         if not email:
+            # JWT is valid but incomplete - webhook is still in flight
+            logger.info(f"JWT for {clerk_user_id} missing email field, webhook likely in progress")
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: missing email"
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Account setup in progress. Please retry in a moment.",
+                headers={"Retry-After": "2"}
             )
 
         # Create user with database lock to prevent duplicates

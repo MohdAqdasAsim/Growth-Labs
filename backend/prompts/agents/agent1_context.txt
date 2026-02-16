@@ -8,7 +8,11 @@ TIME AVAILABILITY: {time_per_week}
 
 PLATFORM URLS:
 - YouTube: {youtube_url}
+- Twitter: {twitter_url}
 - Instagram: {instagram_url}
+- LinkedIn: {linkedin_url}
+- TikTok: {tiktok_url}
+- Facebook: {facebook_url}
 - Reddit: {reddit_url}
 
 COMPETITORS FOR ANALYSIS:

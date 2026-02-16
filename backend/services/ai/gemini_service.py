@@ -1,6 +1,8 @@
 """Gemini 3 Flash API wrapper service."""
 import json
+import logging
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional, List
 from datetime import datetime
@@ -16,6 +18,8 @@ from ...models.agents.agent_outputs import (
     ContentAgentOutput,
     OutcomeAgentOutput,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _serialize_for_prompt(obj: Any) -> str:
@@ -35,7 +39,7 @@ class GeminiService:
         """Initialize Gemini client with Pollinations fallback for testing."""
         # ⚠️ TESTING MODE: Use Pollinations API instead of Gemini
         self.use_pollinations = True
-        self.pollinations_url = "https://text.pollinations.ai"
+        self.pollinations_url = "https://gen.pollinations.ai/v1/chat/completions"
         
         # Cache for loaded prompts
         self._prompt_cache: Dict[str, str] = {}
@@ -77,65 +81,113 @@ class GeminiService:
         return prompt
     
     def _generate_json_pollinations(self, prompt: str, output_schema: type[Any], system_instruction: Optional[str] = None) -> Any:
-        """Use Pollinations text API for testing."""
-        try:
-            # Build full prompt
-            full_prompt = prompt
-            if system_instruction:
-                full_prompt = f"{system_instruction}\n\n{prompt}"
-            
-            # Build detailed schema with type info
-            schema_fields = []
-            for field_name, field_info in output_schema.model_fields.items():
-                field_type = str(field_info.annotation)
-                # Simplify type hints for clarity
-                if 'list[str]' in field_type or 'List[str]' in field_type:
-                    schema_fields.append(f'"{field_name}": ["string1", "string2", ...]')
-                elif 'dict' in field_type or 'Dict' in field_type:
-                    schema_fields.append(f'"{field_name}": {{"key": "value"}}')
+        """Use Pollinations text API with retry logic for Cloudflare Tunnel errors."""
+        # Build full prompt
+        full_prompt = prompt
+        if system_instruction:
+            full_prompt = f"{system_instruction}\n\n{prompt}"
+        
+        # Build detailed schema with type info
+        schema_fields = []
+        for field_name, field_info in output_schema.model_fields.items():
+            field_type = str(field_info.annotation)
+            # Simplify type hints for clarity
+            if 'list[str]' in field_type or 'List[str]' in field_type:
+                schema_fields.append(f'"{field_name}": ["string1", "string2", ...]')
+            elif 'dict' in field_type or 'Dict' in field_type:
+                schema_fields.append(f'"{field_name}": {{"key": "value"}}')
+            else:
+                schema_fields.append(f'"{field_name}": "value"')
+        
+        schema_example = "{" + ", ".join(schema_fields) + "}"
+        schema_instruction = f"\n\nIMPORTANT: Return ONLY valid JSON matching this structure: {schema_example}. No markdown, no extra text, just JSON."
+        full_prompt += schema_instruction
+        
+        # Retry logic: 3 attempts with exponential backoff (2s, 4s, 8s)
+        max_retries = 3
+        backoff_delays = [2, 4, 8]  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                # Prepare headers with API key
+                headers = {}
+                if POLLINATIONS_API_KEY:
+                    headers["Authorization"] = f"Bearer {POLLINATIONS_API_KEY}"
+                
+                # Call Pollinations text API (using mistral model with OpenAI-compatible endpoint)
+                response = requests.post(
+                    self.pollinations_url,
+                    json={
+                        "messages": [{"role": "user", "content": full_prompt}],
+                        "model": "mistral"
+                    },
+                    headers=headers,
+                    timeout=30
+                )
+                
+                if response.status_code != 200:
+                    # Check for Cloudflare Tunnel errors (530, 503) or other transient errors
+                    if response.status_code in [530, 503, 502, 504] and attempt < max_retries - 1:
+                        delay = backoff_delays[attempt]
+                        logger.warning(
+                            f"Pollinations API returned status {response.status_code} (attempt {attempt + 1}/{max_retries}). "
+                            f"Retrying in {delay}s... Error: {response.text[:200]}"
+                        )
+                        time.sleep(delay)
+                        continue  # Retry
+                    
+                    # Final failure or non-retryable error
+                    raise ValueError(f"Pollinations API error: {response.status_code} - {response.text[:500]}")
+                
+                json_text = response.text.strip()
+                # Parse OpenAI-compatible response format
+                response_data = response.json()
+                
+                # Extract content from choices[0].message.content
+                if "choices" not in response_data or len(response_data["choices"]) == 0:
+                    raise ValueError(f"Invalid response format: missing 'choices' field")
+                
+                json_text = response_data["choices"][0]["message"]["content"].strip()
+                
+                # Clean markdown code blocks
+                if json_text.startswith("```json"):
+                    json_text = json_text[7:].strip()
+                elif json_text.startswith("```"):
+                    json_text = json_text[3:].strip()
+                if json_text.endswith("```"):
+                    json_text = json_text[:-3].strip()
+                
+                # Extract JSON object_text:
+                    start = json_text.index('{')
+                    end = json_text.rindex('}') + 1
+                    json_text = json_text[start:end]
+                
+                # Parse and validate
+                data = json.loads(json_text)
+                logger.info(f"Pollinations API call successful (attempt {attempt + 1}/{max_retries})")
+                return output_schema(**data)
+                
+            except (requests.exceptions.RequestException, requests.exceptions.Timeout) as e:
+                # Network errors - retry
+                if attempt < max_retries - 1:
+                    delay = backoff_delays[attempt]
+                    logger.warning(
+                        f"Pollinations API network error (attempt {attempt + 1}/{max_retries}): {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+                    continue
                 else:
-                    schema_fields.append(f'"{field_name}": "value"')
+                    logger.error(f"Pollinations API call failed after {max_retries} attempts: {e}", exc_info=True)
+                    raise ValueError(f"Pollinations API call failed after {max_retries} attempts: {str(e)}")
             
-            schema_example = "{" + ", ".join(schema_fields) + "}"
-            schema_instruction = f"\n\nIMPORTANT: Return ONLY valid JSON matching this structure: {schema_example}. No markdown, no extra text, just JSON."
-            full_prompt += schema_instruction
-            
-            # Call Pollinations text API (using mistral model)
-            response = requests.post(
-                self.pollinations_url,
-                json={
-                    "messages": [{"role": "user", "content": full_prompt}],
-                    "model": "mistral",
-                    "jsonMode": True
-                },
-                timeout=30
-            )
-            
-            if response.status_code != 200:
-                raise ValueError(f"Pollinations API error: {response.status_code} - {response.text}")
-            
-            json_text = response.text.strip()
-            
-            # Clean markdown
-            if json_text.startswith("```json"):
-                json_text = json_text[7:].strip()
-            elif json_text.startswith("```"):
-                json_text = json_text[3:].strip()
-            if json_text.endswith("```"):
-                json_text = json_text[:-3].strip()
-            
-            # Extract JSON
-            if '{' in json_text:
-                start = json_text.index('{')
-                end = json_text.rindex('}') + 1
-                json_text = json_text[start:end]
-            
-            # Parse and validate
-            data = json.loads(json_text)
-            return output_schema(**data)
-            
-        except Exception as e:
-            raise ValueError(f"Pollinations API call failed: {str(e)}")
+            except (json.JSONDecodeError, ValueError, KeyError) as e:
+                # JSON parsing/validation errors - don't retry, fail immediately
+                logger.error(f"Pollinations API response parsing failed: {e}", exc_info=True)
+                raise ValueError(f"Pollinations API response parsing failed: {str(e)}")
+        
+        # Should not reach here, but just in case
+        raise ValueError(f"Pollinations API call failed after {max_retries} attempts")
     
     def generate_json(
         self,
@@ -327,7 +379,11 @@ class GeminiService:
             platforms=', '.join(creator_data.get('platforms', [])),
             time_per_week=creator_data.get('time_per_week', 'Not specified'),
             youtube_url=creator_data.get('youtube_url', 'Not provided'),
+            twitter_url=creator_data.get('twitter_url', 'Not provided'),
             instagram_url=creator_data.get('instagram_url', 'Not provided'),
+            linkedin_url=creator_data.get('linkedin_url', 'Not provided'),
+            tiktok_url=creator_data.get('tiktok_url', 'Not provided'),
+            facebook_url=creator_data.get('facebook_url', 'Not provided'),
             reddit_url=creator_data.get('reddit_url', 'Not provided'),
             competitor_urls=json.dumps(creator_data.get('competitor_urls', []), indent=2),
             user_best_videos=user_best_videos,
