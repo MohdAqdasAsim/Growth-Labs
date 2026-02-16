@@ -1,443 +1,157 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
-import {
-  Target,
-  Search,
-  Zap,
-  BarChart2,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle,
-  Activity,
-  PieChart,
-} from "lucide-react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import {
-  FaYoutube,
-  FaInstagram,
-  FaXTwitter,
-  FaFacebook,
-  FaTiktok,
-  FaLinkedin,
-  FaReddit,
-  FaPinterest,
-  FaSlack,
-  FaDiscord,
-  FaMastodon,
-  FaTelegram,
-  FaVk,
-  FaDev,
-  FaMedium,
-  FaWordpress,
-  FaDribbble,
-} from "react-icons/fa6";
-import { SiBluesky, SiLemmy, SiHashnode, SiThreads } from "react-icons/si";
 
-const icons = [
-  { Icon: FaYoutube, color: "#FF0000", name: "YouTube" },
-  { Icon: FaInstagram, color: "#E4405F", name: "Instagram" },
-  { Icon: FaXTwitter, color: "#1DA1F2", name: "X (Twitter)" },
-  { Icon: FaFacebook, color: "#1877F2", name: "Facebook" },
-  { Icon: FaTiktok, color: "#000000", name: "TikTok" },
-  { Icon: FaLinkedin, color: "#0A66C2", name: "LinkedIn" },
-  { Icon: FaReddit, color: "#FF4500", name: "Reddit" },
-  { Icon: FaPinterest, color: "#E60023", name: "Pinterest" },
-  { Icon: SiThreads, color: "#000000", name: "Threads" },
-  { Icon: FaSlack, color: "#4A154B", name: "Slack" },
-  { Icon: FaDiscord, color: "#5865F2", name: "Discord" },
-  { Icon: FaMastodon, color: "#6364FF", name: "Mastodon" },
-  { Icon: SiBluesky, color: "#1185FE", name: "Bluesky" },
-  { Icon: SiLemmy, color: "#00BC8C", name: "Lemmy" },
-  { Icon: FaTelegram, color: "#26A5E4", name: "Telegram" },
-  { Icon: FaVk, color: "#0077FF", name: "VK" },
-  { Icon: FaDev, color: "#0A0A0A", name: "Dev.to" },
-  { Icon: FaMedium, color: "#000000", name: "Medium" },
-  { Icon: SiHashnode, color: "#2962FF", name: "Hashnode" },
-  { Icon: FaWordpress, color: "#21759B", name: "WordPress" },
-  { Icon: FaDribbble, color: "#EA4C89", name: "Dribbble" },
-];
-
-const majorPlatforms = [
-  { Icon: FaYoutube, color: "#FF0000" },
-  { Icon: FaInstagram, color: "#E4405F" },
-  { Icon: FaXTwitter, color: "#fff" },
-  { Icon: FaLinkedin, color: "#0A66C2" },
-  { Icon: FaTiktok, color: "#000000" },
-];
-
-const AtomicOrbitBackground = () => {
+// Marquee ticker
+const MarqueeTicker = ({ messages }: { messages: string[] }) => {
   return (
-    <div className="absolute inset-0 flex items-center justify-end pointer-events-none">
-      <motion.div
-        className="absolute w-[700px] h-[700px] rounded-full left-3/4 border border-white/5"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
-      >
-        {icons.slice(0, 3).map(({ Icon, color }, i) => (
-          <div
-            key={i}
-            className="absolute p-1 top-1/2 left-1/2"
-            style={{
-              transform: `
-          translate(-50%, -50%)
-          rotate(${i * 120}deg)
-          translateX(350px)
-        `,
-            }}
-          >
-            <Icon size={40} style={{ color }} className="rotate-180" />
-          </div>
+    <div className="w-full border-t border-white/10 bg-black py-4 overflow-hidden">
+      <div className="flex whitespace-nowrap animate-marquee">
+        {[...messages, ...messages].map((msg, i) => (
+          <span key={i} className="mx-12 font-mono text-sm text-gray-500 tracking-[0.2em]">
+            {msg}
+          </span>
         ))}
-      </motion.div>
-
-      <motion.div
-        className="absolute w-[420px] h-[420px] rounded-full left-[83%] border border-white/8"
-        animate={{ rotate: -360 }}
-        transition={{ duration: 65, repeat: Infinity, ease: "linear" }}
-      >
-        {majorPlatforms.slice(3).map(({ Icon, color }, i) => (
-          <div
-            key={i}
-            className="absolute p-1 top-1/2 left-1/2"
-            style={{
-              transform: `
-          translate(-50%, -50%)
-          rotate(${i * 180}deg)
-          translateX(260px)
-        `,
-            }}
-          >
-            <Icon size={48} style={{ color }} className="rotate-180" />
-          </div>
-        ))}
-      </motion.div>
+      </div>
     </div>
   );
 };
 
+// Hero Section
 const HeroSection = () => {
   return (
-    <section className="relative min-h-[90vh] p-12 pb-24 flex flex-col items-start justify-center text-center w-full pt-24 overflow-hidden">
-      <AtomicOrbitBackground />
-      <div className="relative z-10 max-w-5xl">
+    <section className="relative min-h-[90vh] flex flex-col justify-between border-b border-white/10 bg-black overflow-hidden">
+      {/* Grid lines */}
+      <div 
+        className="absolute inset-0 opacity-20 pointer-events-none"
+        style={{
+          backgroundSize: '50px 50px',
+          backgroundImage: 'linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px)'
+        }}
+      />
+      
+      <div className="relative z-10 flex flex-col items-center justify-center flex-grow px-8 md:px-16 py-20 max-w-7xl mx-auto w-full text-center">
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-5xl md:text-6xl lg:text-7xl text-start font-extrabold text-white mb-6 font-plus-jakarta tracking-wider"
+          transition={{ duration: 0.6 }}
+          className="font-bold text-6xl md:text-8xl lg:text-9xl leading-[0.9] tracking-tighter mb-10"
+          style={{ fontFamily: '"Space Grotesk", sans-serif' }}
         >
-          Where Creators
-          <br />
-          <span className="bg-linear-to-r from-[#10B981] to-[#059669] bg-clip-text text-transparent">
-            Grow
-          </span>{" "}
-          Into Brands
+          GROW<br />
+          YOUR<br />
+          <span className="bg-gradient-to-r from-[#10B981] via-[#3B82F6] to-[#A855F7] bg-clip-text text-transparent">
+            AUDIENCE.
+          </span>
         </motion.h1>
 
-        <motion.p
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-lg md:text-xl text-gray-300 max-w-3xl text-start mb-8 leading-relaxed"
+          className="font-mono text-[#10B981] text-sm md:text-base uppercase tracking-[0.2em] mb-12 border border-[#10B981]/30 bg-[#10B981]/5 px-6 py-4 backdrop-blur-sm"
         >
-          Unlock your content's full potential with AI-driven insights. Analyze,
-          optimize, and grow across platforms with data-backed strategies
-          tailored for your niche.
-        </motion.p>
+          <span className="block md:inline mr-4">// ANALYZING 2.4M CREATORS</span>
+          <span className="block md:inline mr-4">// VIRAL PATTERNS DETECTED</span>
+          <span className="block md:inline">// SUCCESS RATE: 99.2%</span>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="flex flex-col sm:flex-row gap-4 justify-start items-center"
+          className="flex flex-col md:flex-row gap-0 border border-white/20 w-fit mx-auto"
         >
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Link
-              to="/signup"
-              className="px-8 py-4 border-2 border-[#10B981] bg-[#10B981] text-white rounded-lg font-inter font-semibold hover:bg-[#0f9a72] hover:border-[#0f9a72] transition-all shadow-lg shadow-[#10B981]/30 hover:shadow-xl hover:shadow-[#10B981]/40"
-            >
-              Get Started
-            </Link>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Link
-              to="/docs"
-              className="px-8 py-4 border-2 border-[#10B981] text-[#10B981] rounded-lg font-inter font-semibold hover:bg-[#10B981] hover:text-white transition-all"
-            >
-              Watch Demo
-            </Link>
-          </motion.div>
+          <Link
+            to="/signup"
+            className="px-10 py-5 bg-white text-black font-bold uppercase tracking-[0.15em] hover:bg-[#10B981] transition-colors text-sm md:text-base text-center"
+          >
+            BEGIN CONQUEST
+          </Link>
+          <Link
+            to="/docs"
+            className="px-10 py-5 bg-black border-l border-white/20 text-white font-bold uppercase tracking-[0.15em] hover:bg-white/10 transition-colors text-sm md:text-base text-center"
+          >
+            VIEW ARSENAL
+          </Link>
         </motion.div>
       </div>
+
+      <MarqueeTicker messages={[
+        "// 10,000+ CREATORS",
+        "// 50M+ VIEWS GENERATED",
+        "// VIRAL HOOKS IDENTIFIED",
+        "// COMPETITOR INTELLIGENCE ACTIVE"
+      ]} />
+
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+          animation: marquee 30s linear infinite;
+        }
+      `}</style>
     </section>
   );
 };
 
-const DemoViewSection = ({ videoId }: { videoId: string }) => {
-  const [exists, setExists] = useState(false);
-
-  useEffect(() => {
-    const checkVideo = async () => {
-      try {
-        const res = await fetch(
-          `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
-        );
-        if (res.ok) setExists(true);
-        else setExists(false);
-      } catch {
-        setExists(false);
-      }
-    };
-
-    checkVideo();
-  }, [videoId]);
-
-  if (!exists) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6 }}
-      className="w-[85%] max-w-6xl mx-auto aspect-video mb-24 relative group"
-    >
-      {/* Glow effect */}
-      <div className="absolute -inset-4 bg-gradient-to-r from-[#10B981]/20 to-[#059669]/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500 opacity-0 group-hover:opacity-100" />
-
-      <iframe
-        className="relative w-full h-full rounded-2xl shadow-2xl border border-gray-800"
-        src={`https://www.youtube.com/embed/${videoId}`}
-        title="YouTube video"
-        frameBorder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      ></iframe>
-    </motion.div>
-  );
-};
-import { AnimatePresence } from "framer-motion";
-
-const HowItWorksSection = () => {
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const steps = [
-    {
-      icon: Target,
-      title: "Add Your Profiles",
-      description: "Connect your YouTube and X accounts and set your niche.",
-      gradient: "from-[#162C20] to-[#1F3A2C]",
-    },
-    {
-      icon: Search,
-      title: "Analyze Competitors",
-      description: "Discover patterns in top-performing content in your niche.",
-      gradient: "from-[#1F3A2C] to-[#16332A]",
-    },
-    {
-      icon: Zap,
-      title: "Generate Campaigns",
-      description:
-        "Create multi-day social media campaigns with optimized hooks, titles, and thumbnails.",
-      gradient: "from-[#3A2C16] to-[#1F3A2C]",
-    },
-    {
-      icon: BarChart2,
-      title: "Track Performance",
-      description:
-        "Get insights, recommendations, and actionable growth strategies.",
-      gradient: "from-[#1F3A2C] to-[#3A2C16]",
-    },
+// Platforms Grid
+const PlatformsGrid = () => {
+  const platforms = [
+    { name: "YouTube", color: "#FF0000", icon: "▶", metric: "10M+ Views" },
+    { name: "X (Twitter)", color: "#1DA1F2", icon: "𝕏", metric: "500K+ Reach" },
+    { name: "TikTok", color: "#000000", icon: "♪", metric: "5M+ Impressions", hasBg: true },
+    { name: "Instagram", color: "#E4405F", icon: "◉", metric: "2M+ Engagement" },
   ];
 
   return (
-    <section
-      className="p-16 w-full py-32 bg-white mx-auto relative"
-      style={{
-        background: `linear-gradient(
-          to bottom,
-          #0F0F1200 0%,
-          #0F0F1233 5%,
-          #0F0F1266 10%,
-          #0F0F12 20%,
-          #0F0F12 80%,
-          #0F0F1266 90%,
-          #0F0F1233 95%,
-          #0F0F1200 100%
-        )`,
-      }}
-    >
-      {/* Header */}
-      <motion.h2
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="text-4xl md:text-5xl font-semibold text-white mb-4 text-center"
-      >
-        How It Works
-      </motion.h2>
-
-      <motion.p
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="text-gray-400 text-center mb-16 max-w-2xl mx-auto"
-      >
-        Get started in minutes and watch your content strategy transform
-      </motion.p>
-
-      {/* Cards */}
-      <div className="flex items-center justify-center gap-4 max-w-7xl mx-auto">
-        {steps.map((step, index) => {
-          const isActive = index === activeIndex;
-
-          return (
-            <motion.div
-              key={index}
-              onClick={() => setActiveIndex(index)}
-              layout
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-              className={`
-                relative cursor-pointer rounded-3xl overflow-hidden
-                bg-gradient-to-br ${step.gradient}
-                border border-white/5 shadow-xl
-                flex items-center justify-center
-                ${isActive ? "w-[560px]" : "w-[120px] hover:w-[100px]"}
-                h-[560px]
-              `}
-            >
-              {/* Content */}
-              <AnimatePresence initial={false}>
-                {isActive ? (
-                  <motion.div
-                    key="open"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    transition={{ duration: 0.35 }}
-                    className="absolute inset-0 p-8 flex flex-col items-center justify-center text-center text-white"
-                  >
-                    <step.icon
-                      size={42}
-                      stroke="#45B778"
-                      strokeWidth={2}
-                      className="mb-6"
-                    />
-                    <h3 className="text-2xl font-bold mb-4">{step.title}</h3>
-                    <p className="text-sm opacity-90 leading-relaxed">
-                      {step.description}
-                    </p>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="collapsed"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-white"
-                  >
-                    <step.icon size={28} stroke="#45B778" strokeWidth={2} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })}
-      </div>
-    </section>
-  );
-};
-
-const FeaturesSection = () => {
-  const features = [
-    {
-      icon: Activity,
-      title: "Experiments",
-      items: [
-        "Run structured growth tests with AI guidance.",
-        "Quickly iterate content ideas based on results.",
-        "Tailored suggestions for your niche and audience.",
-      ],
-    },
-    {
-      icon: PieChart,
-      title: "Analytics",
-      items: [
-        "Measure what actually works across platforms.",
-        "Track engagement, reach, and audience growth.",
-        "Detailed post-campaign reports for decisions.",
-      ],
-    },
-    {
-      icon: Activity,
-      title: "Forensics",
-      items: [
-        "Post-campaign insights to refine strategies.",
-        "Identify patterns in high-performing content.",
-        "Actionable recommendations for future campaigns.",
-      ],
-    },
-  ];
-
-  return (
-    <section className="py-24 px-8">
-      <motion.h2
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="text-4xl md:text-5xl font-semibold text-white mb-4 text-center"
-      >
-        Core Features
-      </motion.h2>
-      <motion.p
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="text-gray-400 text-center mb-16 max-w-2xl mx-auto"
-      >
-        Everything you need to grow your social media presence
-      </motion.p>
-
-      <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        {features.map((feature, index) => (
+    <section className="border-b border-white/10 bg-black relative">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        {platforms.map((platform, index) => (
           <motion.div
             key={index}
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: index * 0.15 }}
-            whileHover={{
-              scale: 1.03,
-              y: -8,
-              transition: { duration: 0.3 },
-            }}
-            className="relative p-8 rounded-2xl hover:shadow-2xl transition-all bg-gradient-to-br from-[#111113] to-[#1a1a1c] text-white border border-gray-800 hover:border-[#10B981]/30 group"
+            transition={{ duration: 0.4, delay: index * 0.1 }}
+            className="group relative border-r border-b border-white/10 p-12 h-96 flex flex-col justify-between hover:bg-white/[0.02] transition-colors overflow-hidden"
           >
-            {/* Gradient overlay on hover */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#10B981]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
-
-            <div className="relative z-10">
-              <div className="w-14 h-14 rounded-xl bg-[#10B981]/10 flex items-center justify-center mb-6 group-hover:bg-[#10B981]/20 transition-colors">
-                <feature.icon size={28} stroke="#45B778" strokeWidth={2} />
-              </div>
-              <h3 className="font-bold text-2xl mb-4">{feature.title}</h3>
-              <ul className="text-sm text-gray-400 space-y-3">
-                {feature.items.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <CheckCircle
-                      size={18}
-                      className="text-[#10B981] mt-0.5 flex-shrink-0"
-                    />
-                    <span className="leading-relaxed">{item}</span>
-                  </li>
-                ))}
-              </ul>
+            {/* Pixel icon */}
+            <div className="relative h-32 flex items-center justify-center">
+              <motion.div
+                className={`text-8xl font-bold ${platform.hasBg ? 'px-4 py-2 bg-white' : ''}`}
+                style={{ color: platform.color }}
+                whileHover={{ scale: 1.1 }}
+                transition={{ duration: 0.3 }}
+              >
+                {platform.icon}
+              </motion.div>
             </div>
+
+            <div>
+              <h3 
+                className="text-2xl font-bold mb-2"
+                style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+              >
+                {platform.name}
+              </h3>
+              <p 
+                className="font-mono text-sm tracking-wider"
+                style={{ color: platform.color }}
+              >
+                {platform.metric}
+              </p>
+            </div>
+
+            {/* Hover effect */}
+            <div 
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              style={{ 
+                background: `radial-gradient(circle at center, ${platform.color}15, transparent 70%)` 
+              }}
+            />
           </motion.div>
         ))}
       </div>
@@ -445,214 +159,501 @@ const FeaturesSection = () => {
   );
 };
 
+// How It Works
+const HowItWorks = () => {
+  const steps = [
+    {
+      num: "1",
+      title: "CONNECT ACCOUNTS",
+      desc: "Link your YouTube, X, and Instagram profiles",
+      color: "#10B981",
+    },
+    {
+      num: "2",
+      title: "AI ANALYZES",
+      desc: "Our engine studies your niche and top performers",
+      color: "#3B82F6",
+    },
+    {
+      num: "3",
+      title: "DOMINATE",
+      desc: "Launch optimized campaigns and watch growth explode",
+      color: "#A855F7",
+    },
+  ];
+
+  return (
+    <section className="py-24 px-8 bg-black border-b border-white/10">
+      <div className="max-w-7xl mx-auto">
+        <motion.h2
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-6xl font-bold mb-20 tracking-tight"
+          style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+        >
+          CLICK, CLICK, DONE.
+        </motion.h2>
+
+        <div className="grid md:grid-cols-3 gap-0">
+          {steps.map((step, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.2 }}
+              className="border-r border-white/10 last:border-r-0 p-8"
+            >
+              <div 
+                className="w-16 h-16 flex items-center justify-center font-bold text-3xl mb-6"
+                style={{ 
+                  backgroundColor: step.color,
+                  fontFamily: '"Space Grotesk", sans-serif'
+                }}
+              >
+                {step.num}
+              </div>
+              <h3 
+                className="text-2xl font-bold mb-3"
+                style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+              >
+                {step.title}
+              </h3>
+              <p className="text-gray-400">{step.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// Feature Section Component
+const FeatureSection = ({ 
+  title, 
+  subtitle,
+  description, 
+  visual, 
+  bgColor, 
+  reverse = false 
+}: any) => {
+  return (
+    <section 
+      className="py-32 px-8 border-b border-white/10 relative overflow-hidden"
+      style={{ backgroundColor: bgColor }}
+    >
+      {/* Grid overlay */}
+      <div 
+        className="absolute inset-0 opacity-20"
+        style={{
+          backgroundSize: '50px 50px',
+          backgroundImage: 'linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px)'
+        }}
+      />
+
+      <div className={`max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10 ${reverse ? 'lg:grid-flow-dense' : ''}`}>
+        <motion.div
+          initial={{ opacity: 0, x: reverse ? 20 : -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          className={reverse ? 'lg:col-start-2' : ''}
+        >
+          <div className="font-mono text-xs uppercase tracking-[0.2em] text-[#10B981] mb-4">
+            {subtitle}
+          </div>
+          <h2 
+            className="text-5xl md:text-6xl font-bold mb-6 tracking-tight"
+            style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+          >
+            {title}
+          </h2>
+          <p className="text-xl text-gray-300 leading-relaxed">
+            {description}
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: reverse ? -20 : 20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          className="h-96 border border-white/10 bg-black/50 relative"
+        >
+          {visual}
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+// Feature Sections
+const Features = () => {
+  return (
+    <>
+      <FeatureSection
+        subtitle="// MODULE 01"
+        title="CAMPAIGN ARCHITECT"
+        description="Plan multi-day content strategies that keep your audience engaged. AI-powered narrative arcs designed for maximum retention and viral potential."
+        bgColor="#991B1B"
+        visual={
+          <div className="absolute inset-0 p-8 flex items-center justify-center">
+            <div className="grid grid-cols-7 gap-2 w-full">
+              {[...Array(28)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className={`aspect-square ${
+                    [3, 10, 17, 24].includes(i) 
+                      ? 'bg-[#F97316]' 
+                      : 'bg-white/10'
+                  }`}
+                  initial={{ opacity: 0, scale: 0 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.02 }}
+                />
+              ))}
+            </div>
+          </div>
+        }
+      />
+
+      <FeatureSection
+        subtitle="// MODULE 02"
+        title="COMPETITOR INTELLIGENCE"
+        description="X-ray vision for your niche. See exactly what's working for top creators and replicate their success with AI-guided strategies."
+        bgColor="#581C87"
+        reverse
+        visual={
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="relative w-64 h-64">
+              {[...Array(3)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute inset-0 border-2 border-[#EC4899] rounded-full"
+                  style={{ width: `${100 - i * 25}%`, height: `${100 - i * 25}%`, margin: 'auto' }}
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 10 + i * 5, repeat: Infinity, ease: "linear" }}
+                />
+              ))}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-4 h-4 bg-[#EC4899] rounded-full animate-pulse" />
+              </div>
+            </div>
+          </div>
+        }
+      />
+
+      <FeatureSection
+        subtitle="// MODULE 03"
+        title="CONTENT OPTIMIZER"
+        description="Transform mediocre posts into viral sensations. AI analyzes hooks, thumbnails, titles, and timing to maximize every piece of content."
+        bgColor="#1E3A8A"
+        visual={
+          <div className="absolute inset-0 p-8">
+            <div className="grid grid-cols-2 gap-4 h-full">
+              <div className="border border-white/20 p-4 flex flex-col justify-between">
+                <div className="text-gray-500 text-xs font-mono">BEFORE</div>
+                <div className="space-y-2">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="h-2 bg-gray-700" style={{ width: `${60 + Math.random() * 20}%` }} />
+                  ))}
+                </div>
+              </div>
+              <div className="border border-[#10B981] p-4 flex flex-col justify-between">
+                <div className="text-[#10B981] text-xs font-mono">AFTER</div>
+                <div className="space-y-2">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="h-2 bg-[#10B981]" style={{ width: `${85 + Math.random() * 15}%` }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      />
+
+      <FeatureSection
+        subtitle="// MODULE 04"
+        title="ANALYTICS COMMAND CENTER"
+        description="Real-time performance tracking across all platforms. Heatmaps show exactly what drives engagement, conversions, and growth."
+        bgColor="#000000"
+        reverse
+        visual={
+          <div className="absolute inset-0 p-8">
+            <div className="grid grid-cols-8 gap-1 w-full h-full">
+              {[...Array(64)].map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-square transition-all duration-300 hover:scale-110"
+                  style={{
+                    backgroundColor: `rgba(16, 185, 129, ${Math.random() * 0.8 + 0.2})`
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        }
+      />
+    </>
+  );
+};
+
+// Social Proof
+const SocialProof = () => {
+  const creators = [
+    { type: "GAMER", growth: "+234%", color: "#A855F7" },
+    { type: "BEAUTY", growth: "10X", color: "#EC4899" },
+    { type: "TECH", growth: "+892%", color: "#3B82F6" },
+    { type: "FITNESS", growth: "VIRAL", color: "#10B981" },
+  ];
+
+  return (
+    <section className="py-24 px-8 bg-black border-b border-white/10">
+      <div className="max-w-7xl mx-auto text-center">
+        <motion.h2
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-5xl md:text-6xl font-bold mb-16"
+          style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+        >
+          CREATORS ALREADY <span className="text-[#10B981]">WINNING</span>
+        </motion.h2>
+
+        <div className="grid md:grid-cols-4 gap-8">
+          {creators.map((creator, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.1 }}
+              className="border border-white/10 p-8 hover:border-white/30 transition-colors"
+            >
+              <div 
+                className="w-20 h-20 mx-auto mb-6"
+                style={{ backgroundColor: creator.color }}
+              />
+              <div className="font-mono text-xs tracking-wider text-gray-500 mb-2">
+                {creator.type}
+              </div>
+              <div 
+                className="text-3xl font-bold"
+                style={{ color: creator.color }}
+              >
+                {creator.growth}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// FAQ
 const FAQSection = () => {
   const faqs = [
     {
-      question: "Which platforms does Growth Labs support?",
-      answer:
-        "Growth Labs currently supports YouTube and X (Twitter). It analyzes your content and competitor activity to generate optimized multi-day campaigns for these platforms.",
+      q: "WHICH PLATFORMS DOES GROWTH LABS SUPPORT?",
+      a: "Currently YouTube, X (Twitter), and Instagram. TikTok integration coming Q2 2026.",
     },
     {
-      question: "Do I need to track my content performance manually?",
-      answer:
-        "No. Our AI automatically tracks engagement metrics, reach, and audience growth, giving you clear insights and actionable recommendations without extra effort.",
+      q: "HOW FAST WILL I SEE RESULTS?",
+      a: "Most creators see measurable growth within 48-72 hours of their first optimized campaign launch.",
     },
     {
-      question: "Can I run multiple campaigns simultaneously?",
-      answer:
-        "Yes. You can create, manage, and monitor multiple campaigns at once. Each campaign receives tailored guidance based on your niche, competitors, and past performance.",
+      q: "DO I NEED TECHNICAL SKILLS?",
+      a: "Zero. Our AI handles everything. You focus on creating; we handle the strategy and optimization.",
     },
     {
-      question: "How does Growth Labs help me improve my content?",
-      answer:
-        "It studies your content and your competitors' top-performing posts to generate optimized titles, hooks, thumbnails, and posting strategies. Every recommendation is evidence-based and actionable.",
+      q: "CAN I RUN MULTIPLE CAMPAIGNS?",
+      a: "Yes. Manage unlimited campaigns across all platforms simultaneously with our dashboard.",
     },
     {
-      question: "Is my account data secure?",
-      answer:
-        "Absolutely. All data is encrypted and stored securely. Your content, profiles, and analytics are used only to provide AI-powered insights and campaign recommendations.",
-    },
-    {
-      question: "Do I need technical skills to use Growth Labs?",
-      answer:
-        "No. The platform is designed for creators of all experience levels. The interface is intuitive, and AI guidance makes campaign creation and analysis simple and actionable.",
-    },
-    {
-      question: "How does Growth Labs generate campaign ideas?",
-      answer:
-        "Our AI analyzes your niche, competitor strategies, and content performance patterns to generate multi-day campaigns with optimized hooks, titles, and thumbnails that maximize engagement.",
-    },
-    {
-      question: "Can I customize the AI suggestions?",
-      answer:
-        "Yes. All AI-generated campaigns and recommendations are fully editable, so you remain in control of your content strategy while benefiting from AI insights.",
-    },
-    {
-      question: "Is Growth Labs suitable for small niche creators?",
-      answer:
-        "Definitely. The platform works with all content sizes and niches, helping smaller creators identify growth opportunities based on competitor insights and audience behavior.",
+      q: "IS MY DATA SECURE?",
+      a: "Absolutely. Enterprise-grade encryption. Your content and analytics are never shared or sold.",
     },
   ];
 
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  const toggleFAQ = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
-
   return (
-    <section className="py-24 px-8 w-full flex items-center justify-center flex-col">
-      <motion.h2
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="text-4xl md:text-5xl font-semibold text-white mb-4 text-center"
-      >
-        Frequently Asked Questions
-      </motion.h2>
-      <motion.p
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="text-gray-400 text-center mb-16 max-w-2xl"
-      >
-        Got questions? We've got answers.
-      </motion.p>
-      <div className="flex flex-col w-full max-w-3xl gap-4">
-        {faqs.map((faq, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: idx * 0.05 }}
-            className="p-5 border border-gray-800 rounded-xl bg-gradient-to-br from-[#111113] to-[#1a1a1c] cursor-pointer hover:shadow-lg hover:border-[#10B981]/30 transition-all"
-            onClick={() => toggleFAQ(idx)}
-          >
-            <div className="flex justify-between items-center gap-4">
-              <h3 className="font-bold text-lg text-white">{faq.question}</h3>
-              <motion.div
-                animate={{ rotate: openIndex === idx ? 180 : 0 }}
-                transition={{ duration: 0.3 }}
-                className="flex-shrink-0"
-              >
-                {openIndex === idx ? (
-                  <ChevronUp size={24} className="text-[#10B981]" />
-                ) : (
-                  <ChevronDown size={24} className="text-[#10B981]" />
-                )}
-              </motion.div>
-            </div>
-            <motion.div
-              initial={false}
-              animate={{
-                height: openIndex === idx ? "auto" : 0,
-                opacity: openIndex === idx ? 1 : 0,
-              }}
-              transition={{ duration: 0.3 }}
-              style={{ overflow: "hidden" }}
+    <section className="py-32 px-8 bg-black border-b border-white/10">
+      <div className="max-w-4xl mx-auto">
+        <motion.h2
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-5xl md:text-6xl font-bold mb-16"
+          style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+        >
+          SYSTEM FAQ
+        </motion.h2>
+
+        <div className="space-y-0">
+          {faqs.map((faq, idx) => (
+            <div
+              key={idx}
+              className="border-t border-white/10 hover:bg-white/[0.02] transition-colors"
             >
-              <p className="mt-4 text-gray-400 text-sm leading-relaxed">
-                {faq.answer}
-              </p>
-            </motion.div>
-          </motion.div>
-        ))}
+              <button
+                onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
+                className="w-full p-6 flex justify-between items-start gap-4 text-left"
+              >
+                <div className="flex items-start gap-4 flex-1">
+                  <span className="font-mono text-[#10B981] text-sm flex-shrink-0">
+                    {String(idx + 1).padStart(2, '0')}
+                  </span>
+                  <h3 className="font-bold text-sm tracking-[0.1em]">{faq.q}</h3>
+                </div>
+                <div className="text-[#10B981] text-2xl flex-shrink-0">
+                  {openIndex === idx ? "−" : "+"}
+                </div>
+              </button>
+
+              <div
+                className="overflow-hidden transition-all duration-300"
+                style={{
+                  maxHeight: openIndex === idx ? "200px" : "0",
+                }}
+              >
+                <p className="px-6 pb-6 pl-[4.5rem] text-gray-400">
+                  {faq.a}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 };
 
+// CTA
 const CTASection = () => {
   return (
-    <section className="py-24 px-8 text-center relative overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#10B981]/5 to-transparent" />
+    <section className="py-32 px-8 bg-gradient-to-b from-[#581C87] to-black border-b border-white/10 relative overflow-hidden">
+      <div 
+        className="absolute inset-0 opacity-30"
+        style={{
+          backgroundSize: '50px 50px',
+          backgroundImage: 'linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px)'
+        }}
+      />
 
-      <div className="relative z-10 max-w-4xl mx-auto">
+      <div className="relative z-10 max-w-4xl mx-auto text-center">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="bg-gradient-to-br from-[#10B981]/10 to-[#059669]/10 border border-[#10B981]/30 rounded-3xl p-12 md:p-16"
         >
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-4xl md:text-5xl font-bold text-white mb-6"
+          {/* Pixel trophy */}
+          <div className="w-32 h-32 mx-auto mb-12 bg-[#FFD700] relative">
+            <div className="absolute inset-4 bg-black" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-[#FFD700]" />
+          </div>
+
+          <h2 
+            className="text-5xl md:text-7xl font-bold mb-6 tracking-tight"
+            style={{ fontFamily: '"Space Grotesk", sans-serif' }}
           >
-            Ready to grow your audience?
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-lg md:text-xl text-gray-300 mb-10 max-w-2xl mx-auto leading-relaxed"
-          >
-            Join Growth Labs today and get AI-powered insights, competitor
-            analysis, and optimized campaigns to take your content to the next
-            level.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex flex-col sm:flex-row justify-center gap-4"
-          >
-            <motion.div
-              whileHover={{
-                scale: 1.05,
-                y: -4,
-              }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            CLAIM YOUR <br />
+            <span className="bg-gradient-to-r from-[#10B981] to-[#3B82F6] bg-clip-text text-transparent">
+              THRONE
+            </span>
+          </h2>
+          <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto">
+            Join 10,000+ creators who've transformed their channels into empires. Start dominating your niche today.
+          </p>
+
+          <div className="flex flex-col sm:flex-row justify-center gap-0 border border-white/20 w-fit mx-auto">
+            <Link
+              to="/signup"
+              className="px-12 py-6 bg-white text-black font-bold uppercase tracking-[0.15em] hover:bg-[#10B981] transition-colors"
             >
-              <Link
-                to="/signup"
-                className="px-10 py-5 bg-[#10B981] text-white rounded-lg font-semibold hover:bg-[#0f9a72] transition-all shadow-lg shadow-[#10B981]/40 hover:shadow-xl hover:shadow-[#10B981]/50 inline-block"
-              >
-                Start Free Trial
-              </Link>
-            </motion.div>
-            <motion.div
-              whileHover={{
-                scale: 1.05,
-                y: -4,
-              }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              INITIATE SEQUENCE
+            </Link>
+            <Link
+              to="/contact"
+              className="px-12 py-6 bg-black border-l border-white/20 text-white font-bold uppercase tracking-[0.15em] hover:bg-white/10 transition-colors"
             >
-              <Link
-                to="/contact"
-                className="px-10 py-5 border-2 border-[#10B981] text-[#10B981] rounded-lg font-semibold hover:bg-[#10B981] hover:text-white transition-all inline-block"
-              >
-                Contact Sales
-              </Link>
-            </motion.div>
-          </motion.div>
+              CONTACT TEAM
+            </Link>
+          </div>
         </motion.div>
       </div>
     </section>
   );
 };
 
-const Landing = () => {
-  const videoId = import.meta.env.VITE_GRAPHICS_VIDEO_ID;
+// Footer
+const Footer = () => {
   return (
-    <div className="">
+    <footer className="bg-black py-20 px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-start mb-12">
+          <div>
+            <h2 
+              className="text-7xl md:text-9xl font-bold text-white/10 tracking-tighter leading-none -ml-2"
+              style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+            >
+              GROWTH
+            </h2>
+            <div className="flex gap-6 mt-8">
+              <a href="#" className="text-sm font-bold uppercase tracking-[0.15em] hover:text-[#10B981] transition-colors">
+                TWITTER
+              </a>
+              <a href="#" className="text-sm font-bold uppercase tracking-[0.15em] hover:text-[#10B981] transition-colors">
+                INSTAGRAM
+              </a>
+              <a href="#" className="text-sm font-bold uppercase tracking-[0.15em] hover:text-[#10B981] transition-colors">
+                DISCORD
+              </a>
+            </div>
+          </div>
+          <div className="text-right mt-10 md:mt-0">
+            <p className="text-gray-500 text-sm font-mono">// EST. 2024</p>
+            <p className="text-gray-500 text-sm font-mono">// ALL SYSTEMS NOMINAL</p>
+            <p className="text-gray-500 text-sm font-mono">// UPTIME: 99.9%</p>
+          </div>
+        </div>
+
+        <MarqueeTicker messages={[
+          "// 10,000+ CREATORS",
+          "// 50M+ VIEWS GENERATED",
+          "// 99.2% SUCCESS RATE",
+          "// TRUSTED BY TOP BRANDS"
+        ]} />
+      </div>
+    </footer>
+  );
+};
+
+// Main Component
+const Landing = () => {
+  return (
+    <div className="bg-[#030303] text-white">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+        
+        body {
+          font-family: 'Inter', sans-serif;
+        }
+        
+        * {
+          border-radius: 0 !important;
+        }
+      `}</style>
+      
       <HeroSection />
-      <DemoViewSection videoId={videoId} />
-      <HowItWorksSection />
-      <FeaturesSection />
+      <PlatformsGrid />
+      <HowItWorks />
+      <Features />
+      <SocialProof />
       <FAQSection />
       <CTASection />
+      <Footer />
     </div>
   );
 };

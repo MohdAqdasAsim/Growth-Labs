@@ -5,7 +5,6 @@ export interface Workspace {
 }
 
 export type CampaignStatus = "active" | "draft" | "completed" | "paused";
-export type Platform = "instagram" | "facebook" | "twitter" | "tiktok" | "linkedin" | "youtube";
 export type CampaignType = "awareness" | "engagement" | "conversion" | "retention";
 export type Metric = "impressions" | "clicks" | "conversions" | "engagement_rate" | "reach" | "followers";
 export type PostingFrequency = "daily" | "twice_daily" | "weekly" | "twice_weekly" | "custom";

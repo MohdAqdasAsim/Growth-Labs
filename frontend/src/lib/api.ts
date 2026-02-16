@@ -42,9 +42,12 @@ export function useApiClient() {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(
+      const error: any = new Error(
         `API error ${response.status}: ${text || response.statusText}`,
       );
+      error.status = response.status;
+      error.retryAfter = response.headers.get("Retry-After");
+      throw error;
     }
 
     // If there's no content, just return undefined as T

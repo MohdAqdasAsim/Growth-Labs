@@ -1,8 +1,8 @@
 import { Routes, Route, Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   SignedIn,
   SignedOut,
-  RedirectToSignIn,
   useUser,
   useClerk,
 } from "@clerk/clerk-react";
@@ -25,6 +25,7 @@ import {
   CreatePost,
 } from "./pages";
 import { Header, Footer, AuthHeader, Breadcrumb, SideBar } from "./components";
+import { useApiClient } from "./lib/api";
 
 function AuthLayout() {
   return (
@@ -43,7 +44,7 @@ function PublicLayout() {
     <div className="bg-[#0a0a0a]">
       <Header />
       <Outlet />
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }
@@ -108,19 +109,75 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function OnboardingCheck({ children }: { children: React.ReactNode }) {
-  const { user, isLoaded } = useUser();
+  const { isLoaded } = useUser();
+  const api = useApiClient();
+  const [onboardingStatus, setOnboardingStatus] = useState<"loading" | "complete" | "incomplete">("loading");
+  const [error, setError] = useState<string | null>(null);
+  const [setupMessage, setSetupMessage] = useState<string | null>(null);
 
-  if (!isLoaded) {
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const checkOnboarding = async (retries = 3, delay = 1000) => {
+      try {
+        // Check if profile exists in backend
+        await api.get("/onboarding");
+        // Profile exists, onboarding is complete
+        setSetupMessage(null);
+        setOnboardingStatus("complete");
+      } catch (err: any) {
+        if (err.message?.includes("404")) {
+          // Profile doesn't exist, redirect to onboarding
+          setSetupMessage(null);
+          setOnboardingStatus("incomplete");
+        } else if (err.status === 503 && retries > 0) {
+          // Account setup in progress (webhook race condition)
+          setSetupMessage("Setting up your account...");
+          const retryDelay = err.retryAfter ? parseInt(err.retryAfter) * 1000 : delay;
+          console.log(`Account setup in progress, retrying in ${retryDelay}ms (${retries} attempts left)`);
+          setTimeout(() => checkOnboarding(retries - 1, delay * 2), retryDelay);
+        } else if (err.message?.includes("403") || err.message?.includes("401")) {
+          // Auth error, let Clerk handle it
+          setSetupMessage(null);
+          setError("Authentication error");
+        } else if (err.status === 503) {
+          // Exhausted retries
+          setSetupMessage(null);
+          setError("Account setup is taking longer than expected. Please sign out and try again.");
+        } else {
+          // Other errors - assume incomplete for safety
+          console.error("Onboarding check error:", err);
+          setSetupMessage(null);
+          setOnboardingStatus("incomplete");
+        }
+      }
+    };
+
+    checkOnboarding();
+  }, [isLoaded, api]);
+
+  if (!isLoaded || onboardingStatus === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          {setupMessage && (
+            <p className="text-neutral-400 text-sm">{setupMessage}</p>
+          )}
+        </div>
       </div>
     );
   }
 
-  const hasCompletedOnboarding = user?.unsafeMetadata?.onboardingCompleted;
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-white">{error}</p>
+      </div>
+    );
+  }
 
-  if (!hasCompletedOnboarding) {
+  if (onboardingStatus === "incomplete") {
     return <Navigate to="/onboarding" replace />;
   }
 

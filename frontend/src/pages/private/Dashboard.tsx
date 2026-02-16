@@ -39,6 +39,7 @@ const platformIcons: Record<Platform, React.FC<{ className?: string }>> = {
   ),
   linkedin: Linkedin,
   youtube: Youtube,
+  reddit: (props) => <div {...props}>R</div>, // Add Reddit placeholder
 };
 
 // Mock data
